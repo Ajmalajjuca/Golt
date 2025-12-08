@@ -160,8 +160,8 @@ export class RazorpayService {
           refundOptions.amount = Math.round(amount * 100);
         }
 
-        const refund = await this.razorpay.refunds.create(refundOptions);
-        console.log('✅ Refund initiated:', refund.id);
+        const refund = await this.razorpay.refunds.all(refundOptions);
+        console.log('✅ Refund initiated:', refund.items);
         return refund;
       } else {
         const mockRefundId = `rfnd_${crypto.randomBytes(12).toString('hex')}`;

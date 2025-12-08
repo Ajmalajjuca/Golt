@@ -8,7 +8,9 @@ import { config } from "../config/config.js";
  * @returns signed JWT string
  */
 export const generateToken = (user:IUser): string => {
-
+  if (!user._id) {
+    throw new Error("User ID is required");
+  }
   const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
       userId: user._id.toString(),
       email: user.email,
