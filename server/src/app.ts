@@ -9,6 +9,7 @@ import { notFound } from './middleware/notFound.js';
 import { connectDB } from './config/database.js';
 import { config } from './config/config.js';
 import { startPriceScheduler } from './schedulers/priceScheduler.js';
+import { runImmediateHealthCheck, startHealthCheckScheduler } from './schedulers/healthCheckScheduler.js';
 
 dotenv.config();
 
@@ -28,6 +29,12 @@ app.use(
 
   })
 );
+setTimeout(() => {
+    runImmediateHealthCheck();
+  }, 5000); // Wait 5 seconds for server to be fully ready
+  
+  // Start schedulers
+  startHealthCheckScheduler();
 startPriceScheduler();
 app.use('/api', routes);
 
