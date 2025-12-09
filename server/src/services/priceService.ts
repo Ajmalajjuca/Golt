@@ -11,7 +11,7 @@ export class PriceService {
   private currentPrice: { buy: number; sell: number } | null = null;
   private lastAPICall: Date | null = null;
   private apiCallInterval = 60000; // 1 minute between API calls
-  private usdToInrRate = 83.5; // Update this periodically or fetch from exchange rate API
+  private usdToInrRate = 90.17; // Update this periodically or fetch from exchange rate API
 
   constructor() {
     this.initialize();
@@ -69,18 +69,24 @@ export class PriceService {
     try {
       // Try primary API first
       let priceData = await this.fetchFromGoldAPI();
-      
-      if (!priceData) {
-        // Fallback to secondary API
+
+      if(!priceData){
+        console.log('GoldAPI failed, falling back to Metals.live');
         priceData = await this.fetchFromMetalsLive();
       }
-
+      
       if (!priceData) {
-        // Fallback to tertiary API
-        priceData = await this.fetchFromGoldPriceOrg();
+        console.log('Metals.live failed, falling back to MetalsDevAPI');
+        priceData = await this.fetchFromMetalsDevAPI();
       }
 
       if (!priceData) {
+        console.log('MetalsDevAPI failed, falling back to FreeGoldPrice');
+        priceData = await this.freegoldprice();
+      }
+
+      if (!priceData) {
+        console.log('All APIs failed, falling back to mock generation');
         return null;
       }
 
@@ -119,6 +125,7 @@ export class PriceService {
    * Sign up at: https://www.goldapi.io/
    */
   private async fetchFromGoldAPI(): Promise<GoldPriceAPI | null> {
+    console.log('Fetching from GoldAPI.io');
     try {
       const API_KEY = process.env.GOLD_API_KEY;
       if (!API_KEY) return null;
@@ -131,6 +138,7 @@ export class PriceService {
       });
 
       if (response.data && response.data.price) {
+        console.log("Gold Ask Price:", response.data.price);
         return {
           buyPriceUSD: response.data.price,
           sellPriceUSD: response.data.price * 0.98, // 2% spread
@@ -140,7 +148,7 @@ export class PriceService {
 
       return null;
     } catch (error) {
-      console.error('GoldAPI error:', error);
+      console.error('GoldAPI error:', ( error as any).response.data.error);
       return null;
     }
   }
@@ -150,6 +158,7 @@ export class PriceService {
    * Documentation: https://metals.live/
    */
   private async fetchFromMetalsLive(): Promise<GoldPriceAPI | null> {
+    console.log('Fetching from Metals.live');
     try {
       const response = await axios.get('https://metals.live/v1/spot/gold', {
         timeout: 10000,
@@ -175,33 +184,50 @@ export class PriceService {
    * @desc Fetch from GoldPrice.org API (Tertiary - Free)
    * Documentation: https://www.goldprice.org/gold-price-api.html
    */
-  private async fetchFromGoldPriceOrg(): Promise<GoldPriceAPI | null> {
-    try {
-      const response = await axios.get('https://www.goldprice.org/gold-price-api.html/json', {
-        timeout: 10000,
-      });
+private async freegoldprice(): Promise<GoldPriceAPI | null> {
+  console.log("Fetching from FreeGoldPrice API");
 
-      if (response.data && response.data.price) {
-        const spotPrice = parseFloat(response.data.price);
-        return {
-          buyPriceUSD: spotPrice,
-          sellPriceUSD: spotPrice * 0.98,
-          timestamp: new Date(),
-        };
-      }
+  try {
+    const API_KEY = process.env.FREEGOLDPRICE_API_KEY;
+    const url = `https://freegoldprice.org/api/v2?key=${API_KEY}&action=GSJ`;
 
-      return null;
-    } catch (error) {
-      console.error('GoldPrice.org error:', error);
+    const response = await axios.get(url, {
+      timeout: 10000,
+    });
+
+    const data = response.data;
+
+    // The actual structure is data.GSJ
+    const g = data?.GSJ;
+
+    if (!g || !g.Gold || !g.Gold.USD || !g.Gold.USD.ask) {
+      console.error("Unexpected API response format:", data);
       return null;
     }
+
+    const goldAsk = parseFloat(g.Gold.USD.ask);
+    console.log("Gold Ask Price:", goldAsk);
+
+    return {
+      buyPriceUSD: goldAsk,
+      sellPriceUSD: goldAsk * 0.98, // spread
+      timestamp: new Date(),
+    };
+
+  } catch (error) {
+    console.error("FreeGoldPrice API error:", error);
+    return null;
   }
+}
+
+
 
   /**
    * @desc Fetch from MetalsDevAPI (Alternative - Free)
    * Documentation: https://metals.dev/
    */
   private async fetchFromMetalsDevAPI(): Promise<GoldPriceAPI | null> {
+    console.log('Fetching from MetalsDevAPI');
     try {
       const API_KEY = process.env.METALS_DEV_API_KEY;
       if (!API_KEY) return null;
@@ -217,6 +243,7 @@ export class PriceService {
 
       if (response.data && response.data.metals && response.data.metals.gold) {
         const goldPrice = response.data.metals.gold;
+        console.log("Gold Price:", goldPrice);
         return {
           buyPriceUSD: goldPrice,
           sellPriceUSD: goldPrice * 0.98,
@@ -226,7 +253,9 @@ export class PriceService {
 
       return null;
     } catch (error) {
-      console.error('MetalsDevAPI error:', error);
+      if((error as any).response.data.error_message.includes("disabled")) {
+        console.error("MetalsAPI Error:", (error as any).response.data.error_message);
+      }
       return null;
     }
   }
@@ -277,15 +306,15 @@ export class PriceService {
    * @desc Generate mock price (fallback when all APIs fail)
    */
   private async generateMockPrice(): Promise<IPrice> {
-    const lastPrice = this.currentPrice || { buy: 6500, sell: 6400 };
+    const lastPrice = this.currentPrice || { buy: 12450, sell: 11605 };
     
     // Fluctuate by -50 to +50
     const fluctuation = Math.floor(Math.random() * 101) - 50;
     
     let newBuy = lastPrice.buy + fluctuation;
     // Ensure it doesn't drop too low or go too high
-    if (newBuy < 5000) newBuy = 5000;
-    if (newBuy > 8000) newBuy = 8000;
+    if (newBuy < 12450) newBuy = 12450;
+    if (newBuy > 12450) newBuy = 12450;
 
     // Sell price with spread
     const spread = 100 + Math.floor(Math.random() * 50);

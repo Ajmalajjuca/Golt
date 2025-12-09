@@ -30,6 +30,12 @@
       "bundler": "metro"
     },
     "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.6131617190-olimslmumk2f3jm801fdun6ejp1q5glt"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -52,9 +58,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "c5b3930e-1cdc-4905-b888-02a26bd538a5"
+        "projectId": "06d1b308-26b6-4d9e-aedc-374653a0b9b5"
       }
-    },
-    "owner": "ajmalca"
+    }
   }
 }
