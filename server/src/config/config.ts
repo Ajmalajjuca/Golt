@@ -22,10 +22,11 @@ export const config = {
 
   LogLevel: process.env.LOG_LEVEL || "debug",
 
-  razorpay: {
-    keyId: process.env.RAZORPAY_KEY_ID || "",
-    keySecret: process.env.RAZORPAY_KEY_SECRET || "",
-    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
+  cashfree: {
+    clientId: process.env.CF_CLIENT_ID || "",
+    secret: process.env.CF_SECRET || "",
+    environment: process.env.CF_ENVIRONMENT || "sandbox",
+    webhookSecret: process.env.CF_WEBHOOK_SECRET || "",
   },
 
 };

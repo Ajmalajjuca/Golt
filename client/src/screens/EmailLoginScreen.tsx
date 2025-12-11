@@ -12,10 +12,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch } from '../store/hooks';
 import { login, register } from '../store/authSlice';
+import { useAlert } from '../contexts/AlertContext';
 
 const { height } = Dimensions.get('window');
 
@@ -32,6 +35,7 @@ const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const dispatch = useAppDispatch();
+  const { showSuccess, showError } = useAlert();
 
   // Animation values
   const earnOpacity = useRef(new Animated.Value(0.25)).current;
@@ -76,7 +80,7 @@ const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ navigation }) => {
 
   const handleEmailLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
@@ -85,13 +89,12 @@ const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ navigation }) => {
       const actionResult = await dispatch(
         login({ email, password })
       ).unwrap();
-      
-      Alert.alert('Success', `Welcome back ${actionResult.user.name}!`);
-      navigation.replace('Home');
+
+      showSuccess(`Welcome back ${actionResult.user.name}!`);
+      navigation.replace('MainTabs');
     } catch (error) {
       console.error('Email login error:', error);
-      Alert.alert(
-        'Login Failed',
+      showError(
         error instanceof Error ? error.message : 'Invalid email or password'
       );
     } finally {
@@ -108,230 +111,233 @@ const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/Auth2.png')}
-      resizeMode="cover"
-      className="flex-1"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        {/* Top Section - Animated Tabs */}
-        <View className="flex-1 px-6 justify-center">
-          <Animated.View
-            className="flex-row items-center mb-6"
-            style={{ opacity: earnOpacity }}
-          >
-            <Text
-              className="font-bold text-black"
-              style={{
-                fontSize: 40,
-                letterSpacing: -2,
-              }}
-            >
-              Vault
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            className="flex-row items-center mb-6"
-            style={{ opacity: spendOpacity }}
-          >
-            <Text
-              className="font-bold text-black"
-              style={{
-                fontSize: 52,
-                letterSpacing: -2,
-              }}
-            >
-              Track
-            </Text>
-          </Animated.View>
-
-          <Animated.View
-            className="flex-row items-center"
-            style={{ opacity: investOpacity }}
-          >
-            <Text
-              className="font-bold text-black"
-              style={{
-                fontSize: 40,
-                letterSpacing: -2,
-              }}
-            >
-              Worth
-            </Text>
-          </Animated.View>
-        </View>
-
-        {/* Bottom Section - Card */}
-        <View className="overflow-hidden" style={{ height: height * 0.58 }}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ImageBackground
+          source={require('../assets/Auth2.png')}
+          resizeMode="cover"
+          style={{ flex: 1 }}
+        >
           <ScrollView
-            className="flex-1 rounded-t-[32px] px-6 pt-10 pb-6"
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-
-            {/* Heading */}
-            <View className="mb-8">
-              <Text
-                className="text-black mb-2"
-                style={{
-                  fontSize: 38,
-                  letterSpacing: 0.5,
-                  lineHeight: 42,
-                }}
+            {/* Top Section - Animated Tabs */}
+            <View style={{ minHeight: height * 0.42, justifyContent: 'center', paddingHorizontal: 24 }}>
+              <Animated.View
+                className="flex-row items-center mb-6"
+                style={{ opacity: earnOpacity }}
               >
-                Welcome back
-              </Text>
-              <Text
-                className="text-black"
-                style={{
-                  fontSize: 14,
-                  lineHeight: 20,
-                  opacity: 0.9,
-                }}
-              >
-                Sign in to continue building your future
-              </Text>
-            </View>
-
-            {/* Email Input */}
-            <View className="mb-4">
-              <Text
-                className="text-black mb-2 ml-1"
-                style={{ fontSize: 14, opacity: 0.9 }}
-              >
-                Email
-              </Text>
-              <View
-                className="rounded-[16px] h-14 flex-row items-center px-4"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(0, 0, 0, 0.3)',
-                }}
-              >
-                <Ionicons name="mail-outline" size={20} color="#000" style={{ opacity: 0.7 }} />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="rgba(0, 0, 0, 0.3)"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  className="flex-1 text-black ml-3"
-                  style={{ fontSize: 16 }}
-                />
-              </View>
-            </View>
-
-            {/* Password Input */}
-            <View className="mb-6">
-              <Text
-                className="text-black mb-2 ml-1"
-                style={{ fontSize: 14, opacity: 0.9 }}
-              >
-                Password
-              </Text>
-              <View
-                className="rounded-[16px] h-14 flex-row items-center px-4"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(0, 0, 0, 0.3)',
-                }}
-              >
-                <Ionicons name="lock-closed-outline" size={20} color="#000" style={{ opacity: 0.7 }} />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="rgba(0, 0, 0, 0.3)"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  className="flex-1 text-black ml-3"
-                  style={{ fontSize: 16 }}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                    size={20}
-                    color="#000"
-                    style={{ opacity: 0.7 }}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Forgot Password */}
-            <TouchableOpacity
-              onPress={handleForgotPassword}
-              className="self-end mb-6"
-              activeOpacity={0.7}
-            >
-              <Text
-                className="text-black"
-                style={{ fontSize: 14, opacity: 0.9 }}
-              >
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
-
-            {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleEmailLogin}
-              disabled={isLoading}
-              className="bg-black rounded-[28px] h-14 flex-row items-center justify-center shadow-lg mb-4"
-              activeOpacity={0.85}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold text-[17px]">
-                  Sign In
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Sign Up Link */}
-            <View className="flex-row items-center justify-center mb-4">
-              <Text
-                className="text-black"
-                style={{ fontSize: 14, opacity: 0.7 }}
-              >
-                Don't have an account?{' '}
-              </Text>
-              <TouchableOpacity onPress={handleSignUp} activeOpacity={0.7}>
                 <Text
-                  className="text-black font-semibold"
-                  style={{ fontSize: 14 }}
+                  className="font-bold text-black"
+                  style={{
+                    fontSize: 40,
+                    letterSpacing: -2,
+                  }}
                 >
-                  Sign Up
+                  Vault
+                </Text>
+              </Animated.View>
+
+              <Animated.View
+                className="flex-row items-center mb-6"
+                style={{ opacity: spendOpacity }}
+              >
+                <Text
+                  className="font-bold text-black"
+                  style={{
+                    fontSize: 52,
+                    letterSpacing: -2,
+                  }}
+                >
+                  Track
+                </Text>
+              </Animated.View>
+
+              <Animated.View
+                className="flex-row items-center"
+                style={{ opacity: investOpacity }}
+              >
+                <Text
+                  className="font-bold text-black"
+                  style={{
+                    fontSize: 40,
+                    letterSpacing: -2,
+                  }}
+                >
+                  Worth
+                </Text>
+              </Animated.View>
+            </View>
+
+            {/* Bottom Section - Card */}
+            <View className="rounded-t-[32px] px-6 pt-10 pb-6">
+              {/* Heading */}
+              <View className="mb-8">
+                <Text
+                  className="text-black mb-2"
+                  style={{
+                    fontSize: 38,
+                    letterSpacing: 0.5,
+                    lineHeight: 42,
+                  }}
+                >
+                  Welcome back
+                </Text>
+                <Text
+                  className="text-black"
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 20,
+                    opacity: 0.9,
+                  }}
+                >
+                  Sign in to continue building your future
+                </Text>
+              </View>
+
+              {/* Email Input */}
+              <View className="mb-4">
+                <Text
+                  className="text-black mb-2 ml-1"
+                  style={{ fontSize: 14, opacity: 0.9 }}
+                >
+                  Email
+                </Text>
+                <View
+                  className="rounded-[16px] h-14 flex-row items-center px-4"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(0, 0, 0, 0.3)',
+                  }}
+                >
+                  <Ionicons name="mail-outline" size={20} color="#000" style={{ opacity: 0.7 }} />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    placeholderTextColor="rgba(0, 0, 0, 0.3)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    className="flex-1 text-black ml-3"
+                    style={{ fontSize: 16 }}
+                  />
+                </View>
+              </View>
+
+              {/* Password Input */}
+              <View className="mb-6">
+                <Text
+                  className="text-black mb-2 ml-1"
+                  style={{ fontSize: 14, opacity: 0.9 }}
+                >
+                  Password
+                </Text>
+                <View
+                  className="rounded-[16px] h-14 flex-row items-center px-4"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(0, 0, 0, 0.3)',
+                  }}
+                >
+                  <Ionicons name="lock-closed-outline" size={20} color="#000" style={{ opacity: 0.7 }} />
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Enter your password"
+                    placeholderTextColor="rgba(0, 0, 0, 0.3)"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    className="flex-1 text-black ml-3"
+                    style={{ fontSize: 16 }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                      size={20}
+                      color="#000"
+                      style={{ opacity: 0.7 }}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Forgot Password */}
+              <TouchableOpacity
+                onPress={handleForgotPassword}
+                className="self-end mb-6"
+                activeOpacity={0.7}
+              >
+                <Text
+                  className="text-black"
+                  style={{ fontSize: 14, opacity: 0.9 }}
+                >
+                  Forgot Password?
                 </Text>
               </TouchableOpacity>
-            </View>
 
-            {/* Terms */}
-            <Text
-              className="text-black text-center"
-              style={{
-                fontSize: 12,
-                opacity: 0.6,
-              }}
-            >
-              By continuing, you agree to our Terms & Privacy Policy
-            </Text>
+              {/* Login Button */}
+              <TouchableOpacity
+                onPress={handleEmailLogin}
+                disabled={isLoading}
+                className="bg-black rounded-[28px] h-14 flex-row items-center justify-center shadow-lg mb-4"
+                activeOpacity={0.85}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold text-[17px]">
+                    Sign In
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Sign Up Link */}
+              <View className="flex-row items-center justify-center mb-4">
+                <Text
+                  className="text-black"
+                  style={{ fontSize: 14, opacity: 0.7 }}
+                >
+                  Don't have an account?{' '}
+                </Text>
+                <TouchableOpacity onPress={handleSignUp} activeOpacity={0.7}>
+                  <Text
+                    className="text-black font-semibold"
+                    style={{ fontSize: 14 }}
+                  >
+                    Sign Up
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Terms */}
+              <Text
+                className="text-black text-center"
+                style={{
+                  fontSize: 12,
+                  opacity: 0.6,
+                }}
+              >
+                By continuing, you agree to our Terms & Privacy Policy
+              </Text>
+            </View>
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </ImageBackground>
+        </ImageBackground>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 

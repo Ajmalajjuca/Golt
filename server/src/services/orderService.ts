@@ -2,18 +2,19 @@ import Order from '../models/Order.js';
 import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
 import { PriceService } from './priceService.js';
-import { RazorpayService } from './razorpayService.js';
 import { AppError } from '../utils/AppError.js';
 import crypto from 'crypto';
+import { IUser } from '../types/user.js';
+import { CashfreeService } from './cashfreeService.js';
 
 const priceService = new PriceService();
-const razorpayService = new RazorpayService();
+const cashfreeService = new CashfreeService();
 
 export class OrderService {
   /**
    * @desc Initiate a buy order
    */
-  async initiateBuyOrder(userId: string, amountInr: number) {
+  async initiateBuyOrder(user: IUser, amountInr: number) {
     // Get current price
     const currentPrice = await priceService.getLatestPrice();
     if (!currentPrice) throw new AppError('Price not available', 500);
@@ -21,62 +22,60 @@ export class OrderService {
     const pricePerGram = currentPrice.buyPrice;
     const goldGrams = amountInr / pricePerGram;
 
-    // Create Razorpay order
-    const razorpayOrder = await razorpayService.createOrder(amountInr);
+    const { order_id, payment_session_id } = await cashfreeService.createOrder(
+      amountInr,
+      user._id.toString(),
+      user.phone!,
+      user.email!
+    );
 
     // Create order in DB
     const order = await Order.create({
-      user: userId,
+      user: user._id,
       type: 'buy',
       amountInr,
       goldGrams,
       pricePerGram,
       status: 'payment_pending',
-      razorpayOrderId: razorpayOrder.id,
+      cashfreeOrderId: order_id,
+      paymentSessionId: payment_session_id
     });
 
     return {
       order,
-      razorpayOrder,
+      order_id,
+      payment_session_id,
     };
   }
 
   /**
    * @desc Verify payment and complete buy order
    */
-  async verifyAndCompleteBuyOrder(
-    orderId: string,
-    razorpayPaymentId: string,
-    razorpaySignature: string
-  ) {
-    const order = await Order.findById(orderId);
+  async verifyAndCompleteBuyOrder(cashfreeOrderId: string) {
+    // Find order in database
+    const order = await Order.findOne({ cashfreeOrderId });
     if (!order) throw new AppError('Order not found', 404);
-    if (order.status !== 'payment_pending') {
-      throw new AppError('Order is not in payment pending state', 400);
+
+    // Check if already completed
+    if (order.status === 'completed') {
+      return order;
     }
 
-    // Verify signature
-    const isValid = razorpayService.verifyPaymentSignature(
-      order.razorpayOrderId!,
-      razorpayPaymentId,
-      razorpaySignature
-    );
+    // Fetch order status from Cashfree
+    const cashfreeOrder = await cashfreeService.fetchOrder(cashfreeOrderId);
 
-    if (!isValid) {
-      order.status = 'failed';
-      order.failureReason = 'Payment verification failed';
-      await order.save();
-      throw new AppError('Payment verification failed', 400);
+    console.log('📦 Cashfree order status:', cashfreeOrder);
+
+    // Check payment status
+    if (cashfreeOrder.order_status !== 'PAID') {
+      throw new AppError('Payment not completed', 400);
     }
 
-    // Update order
-    order.razorpayPaymentId = razorpayPaymentId;
-    order.razorpaySignature = razorpaySignature;
+    // Update order status
     order.status = 'completed';
     order.completedAt = new Date();
-    
-    // Mock provider order ID (SafeGold/Augmont)
-    order.providerOrderId = `SG${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+    order.providerOrderId = cashfreeOrder.cf_order_id || cashfreeOrderId;
+    order.providerPaymentId = cashfreeOrder.payment_completion_time;
     await order.save();
 
     // Update user's gold balance
@@ -90,7 +89,7 @@ export class OrderService {
       amount: order.amountInr,
       type: 'buy_gold',
       status: 'success',
-      referenceId: (order._id as any).toString(),
+      referenceId: order._id.toString(),
       description: `Bought ${order.goldGrams.toFixed(4)}g gold`,
     });
 
@@ -132,7 +131,7 @@ export class OrderService {
 
     // Update user balances
     await User.findByIdAndUpdate(userId, {
-      $inc: { 
+      $inc: {
         goldBalance: -goldGrams,
         walletBalance: amountInr,
       },
@@ -144,7 +143,7 @@ export class OrderService {
       amount: amountInr,
       type: 'sell_gold',
       status: 'success',
-      referenceId: (order._id as any).toString(),
+      referenceId: order._id.toString(),
       description: `Sold ${goldGrams.toFixed(4)}g gold`,
     });
 

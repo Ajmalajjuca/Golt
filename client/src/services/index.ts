@@ -110,7 +110,7 @@ export const priceService = {
     const params = new URLSearchParams({ period });
     if (interval) params.append('interval', interval);
     if (limit) params.append('limit', limit.toString());
-    
+
     return api.get<any, ApiResponse<PriceHistoryData>>(
       `/price/history?${params.toString()}`
     );
@@ -177,11 +177,9 @@ export const orderService = {
     return api.post('/orders/buy', { amount });
   },
 
-  verifyPayment: async (orderId: string, razorpayPaymentId: string, razorpaySignature: string) => {
+  verifyPayment: async (orderId: string) => {
     return api.post('/orders/verify-payment', {
       orderId,
-      razorpayPaymentId,
-      razorpaySignature,
     });
   },
 

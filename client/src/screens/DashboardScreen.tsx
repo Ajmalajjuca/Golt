@@ -17,21 +17,15 @@ import {
   setSelectedPeriod 
 } from '../store/priceSlice';
 import { 
-  selectCurrentPrice,
   selectChartData,
   selectStatistics,
   selectSelectedPeriod,
   selectRefreshing,
   selectChartLoading,
-  selectBuyPrice,
-  selectSellPrice,
-  selectPriceChange,
 } from '../store/priceSelectors';
-import { StatCard } from '../components/StatCard';
 import { PeriodSelector } from '../components/PeriodSelector';
 import { AnimatedNumberSimple } from '../components/AnimatedNumber';
 import { PriceChart } from '../components/PriceChart';
-import { LiveGoldPrice } from '../components/LiveGoldPrice';
 import { walletService } from '../services';
 import { WalletData } from '../types';
 import { PRICE_REFRESH_INTERVAL } from '../constants';
@@ -48,15 +42,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const { user } = useAppSelector((state) => state.auth);
   
   // Price state from Redux
-  const currentPrice = useAppSelector(selectCurrentPrice);
   const chartData = useAppSelector(selectChartData);
   const statistics = useAppSelector(selectStatistics);
   const selectedPeriod = useAppSelector(selectSelectedPeriod);
   const refreshing = useAppSelector(selectRefreshing);
   const chartLoading = useAppSelector(selectChartLoading);
-  const buyPrice = useAppSelector(selectBuyPrice);
-  const sellPrice = useAppSelector(selectSellPrice);
-  const priceChange = useAppSelector(selectPriceChange);
+
 
   
   

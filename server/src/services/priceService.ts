@@ -70,11 +70,11 @@ export class PriceService {
       // Try primary API first
       let priceData = await this.fetchFromGoldAPI();
 
-      if(!priceData){
+      if (!priceData) {
         console.log('GoldAPI failed, falling back to Metals.live');
         priceData = await this.fetchFromMetalsLive();
       }
-      
+
       if (!priceData) {
         console.log('Metals.live failed, falling back to MetalsDevAPI');
         priceData = await this.fetchFromMetalsDevAPI();
@@ -148,7 +148,7 @@ export class PriceService {
 
       return null;
     } catch (error) {
-      console.error('GoldAPI error:', ( error as any).response.data.error);
+      console.error('GoldAPI error:', (error as any).response.data.error);
       return null;
     }
   }
@@ -184,41 +184,41 @@ export class PriceService {
    * @desc Fetch from GoldPrice.org API (Tertiary - Free)
    * Documentation: https://www.goldprice.org/gold-price-api.html
    */
-private async freegoldprice(): Promise<GoldPriceAPI | null> {
-  console.log("Fetching from FreeGoldPrice API");
+  private async freegoldprice(): Promise<GoldPriceAPI | null> {
+    console.log("Fetching from FreeGoldPrice API");
 
-  try {
-    const API_KEY = process.env.FREEGOLDPRICE_API_KEY;
-    const url = `https://freegoldprice.org/api/v2?key=${API_KEY}&action=GSJ`;
+    try {
+      const API_KEY = process.env.FREEGOLDPRICE_API_KEY;
+      const url = `https://freegoldprice.org/api/v2?key=${API_KEY}&action=GSJ`;
 
-    const response = await axios.get(url, {
-      timeout: 10000,
-    });
+      const response = await axios.get(url, {
+        timeout: 10000,
+      });
 
-    const data = response.data;
+      const data = response.data;
 
-    // The actual structure is data.GSJ
-    const g = data?.GSJ;
+      // The actual structure is data.GSJ
+      const g = data?.GSJ;
 
-    if (!g || !g.Gold || !g.Gold.USD || !g.Gold.USD.ask) {
-      console.error("Unexpected API response format:", data);
+      if (!g || !g.Gold || !g.Gold.USD || !g.Gold.USD.ask) {
+        console.error("Unexpected API response format:", data);
+        return null;
+      }
+
+      const goldAsk = parseFloat(g.Gold.USD.ask);
+      console.log("Gold Ask Price:", goldAsk);
+
+      return {
+        buyPriceUSD: goldAsk,
+        sellPriceUSD: goldAsk * 0.98, // spread
+        timestamp: new Date(),
+      };
+
+    } catch (error) {
+      console.error("FreeGoldPrice API error:", error.response.data.error);
       return null;
     }
-
-    const goldAsk = parseFloat(g.Gold.USD.ask);
-    console.log("Gold Ask Price:", goldAsk);
-
-    return {
-      buyPriceUSD: goldAsk,
-      sellPriceUSD: goldAsk * 0.98, // spread
-      timestamp: new Date(),
-    };
-
-  } catch (error) {
-    console.error("FreeGoldPrice API error:", error);
-    return null;
   }
-}
 
 
 
@@ -253,7 +253,7 @@ private async freegoldprice(): Promise<GoldPriceAPI | null> {
 
       return null;
     } catch (error) {
-      if((error as any).response.data.error_message.includes("disabled")) {
+      if ((error as any).response.data.error_message.includes("disabled")) {
         console.error("MetalsAPI Error:", (error as any).response.data.error_message);
       }
       return null;
@@ -285,10 +285,10 @@ private async freegoldprice(): Promise<GoldPriceAPI | null> {
    */
   private async generateSmallFluctuation(): Promise<IPrice> {
     const lastPrice = this.currentPrice || { buy: 6500, sell: 6400 };
-    
+
     // Very small fluctuation (±10 rupees) to simulate real-time movement
     const fluctuation = Math.floor(Math.random() * 21) - 10;
-    
+
     const newBuy = lastPrice.buy + fluctuation;
     const newSell = lastPrice.sell + fluctuation;
 
@@ -307,10 +307,10 @@ private async freegoldprice(): Promise<GoldPriceAPI | null> {
    */
   private async generateMockPrice(): Promise<IPrice> {
     const lastPrice = this.currentPrice || { buy: 12450, sell: 11605 };
-    
+
     // Fluctuate by -50 to +50
     const fluctuation = Math.floor(Math.random() * 101) - 50;
-    
+
     let newBuy = lastPrice.buy + fluctuation;
     // Ensure it doesn't drop too low or go too high
     if (newBuy < 12450) newBuy = 12450;

@@ -4,17 +4,16 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { updateUser } from '../store/authSlice';
-import { Card } from '../components/Card';
 import { Input } from '../components/Input';
-import { Button } from '../components/Button';
 import { kycService } from '../services';
 import { theme } from '../theme';
+import { useAlert } from '../contexts/AlertContext';
+import { ModalAlert } from '../components/ModalAlert';
 
 interface KYCScreenProps {
   navigation?: any;
@@ -24,11 +23,13 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const { showSuccess, showError } = useAlert();
   
   const [panNumber, setPanNumber] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ pan: '', aadhaar: '' });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const validate = () => {
     let valid = true;
@@ -57,7 +58,10 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      showError('Invalid Input', 'Please check your PAN and Aadhaar details');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -68,31 +72,26 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
         dispatch(updateUser({ ...user, kycStatus: 'pending' }));
       }
 
-      Alert.alert(
-        'KYC Submitted! ✅',
-        'Your KYC documents have been submitted for verification. You will be notified once verified.\n\n(Mock: Auto-verified in 5 seconds)',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Simulate auto-verification after 5 seconds
-              setTimeout(() => {
-                if (user) {
-                  dispatch(updateUser({ ...user, kycStatus: 'verified' }));
-                  Alert.alert('KYC Verified! 🎉', 'Your KYC has been verified successfully!');
-                }
-              }, 5000);
-              
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to submit KYC');
-    } finally {
       setLoading(false);
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      setLoading(false);
+      showError('Submission Failed', error.message || 'Failed to submit KYC. Please try again.');
     }
+  };
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    
+    // Simulate auto-verification after 5 seconds
+    setTimeout(() => {
+      if (user) {
+        dispatch(updateUser({ ...user, kycStatus: 'verified' }));
+        showSuccess('KYC Verified! 🎉', 'Your KYC has been verified successfully!');
+      }
+    }, 5000);
+    
+    navigation.goBack();
   };
 
   const getStatusColor = (status: string) => {
@@ -227,7 +226,10 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
                 <Input
                   label="PAN Number"
                   value={panNumber}
-                  onChangeText={(text) => setPanNumber(text.toUpperCase())}
+                  onChangeText={(text) => {
+                    setPanNumber(text.toUpperCase());
+                    if (errors.pan) setErrors({ ...errors, pan: '' });
+                  }}
                   placeholder="ABCDE1234F"
                   error={errors.pan}
                   icon="card-outline"
@@ -236,7 +238,10 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
                 <Input
                   label="Aadhaar Number"
                   value={aadhaarNumber}
-                  onChangeText={setAadhaarNumber}
+                  onChangeText={(text) => {
+                    setAadhaarNumber(text);
+                    if (errors.aadhaar) setErrors({ ...errors, aadhaar: '' });
+                  }}
                   placeholder="123456789012"
                   keyboardType="numeric"
                   error={errors.aadhaar}
@@ -284,9 +289,20 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
-                    {loading ? 'Submitting...' : 'Submit KYC'}
-                  </Text>
+                  {loading ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17, marginRight: theme.spacing.sm }}>
+                        Submitting
+                      </Text>
+                      <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
+                        ...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
+                      Submit KYC
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </>
@@ -301,52 +317,106 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
                 ...theme.shadows.md,
               }}>
                 <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg }}>
-                  <Ionicons name={statusIcon.name} size={64} color={statusIcon.color} />
+                  <View style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: statusIcon.color + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: theme.spacing.md,
+                  }}>
+                    <Ionicons name={statusIcon.name} size={48} color={statusIcon.color} />
+                  </View>
                   <Text style={{ 
                     fontSize: 24,
                     fontWeight: '700',
                     color: theme.colors.black,
-                    marginTop: theme.spacing.lg 
+                    marginBottom: theme.spacing.sm
                   }}>
-                    {user?.kycStatus === 'verified' && 'KYC Verified!'}
-                    {user?.kycStatus === 'pending' && 'KYC Under Review'}
-                    {user?.kycStatus === 'rejected' && 'KYC Rejected'}
+                    {user?.kycStatus === 'verified' && 'KYC Verified! ✅'}
+                    {user?.kycStatus === 'pending' && 'KYC Under Review ⏳'}
+                    {user?.kycStatus === 'rejected' && 'KYC Rejected ❌'}
                   </Text>
                   <Text style={{ 
                     ...theme.typography.body,
                     color: theme.colors.gray600,
                     textAlign: 'center',
-                    marginTop: theme.spacing.sm,
+                    marginTop: theme.spacing.xs,
                     paddingHorizontal: theme.spacing.lg,
                     lineHeight: 22
                   }}>
                     {user?.kycStatus === 'verified' &&
-                      'Your KYC has been verified. You can now buy and sell gold.'}
+                      'Your KYC has been verified successfully. You can now buy and sell gold without any restrictions.'}
                     {user?.kycStatus === 'pending' &&
-                      'Your KYC documents are being verified. This usually takes 24-48 hours.'}
+                      'Your KYC documents are being verified by our team. This usually takes 24-48 hours. You will be notified once verified.'}
                     {user?.kycStatus === 'rejected' &&
-                      'Your KYC was rejected. Please contact support for more information.'}
+                      'Your KYC was rejected due to invalid or unclear documents. Please contact support for assistance.'}
                   </Text>
                 </View>
               </View>
 
+              {/* Action Buttons */}
               {user?.kycStatus === 'verified' && (
                 <TouchableOpacity
                   onPress={() => navigation.navigate('BuyGold')}
+                  style={{
+                    backgroundColor: theme.colors.green,
+                    borderRadius: theme.borderRadius.xl,
+                    paddingVertical: theme.spacing.lg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: theme.spacing.md,
+                    ...theme.shadows.lg,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="diamond" size={20} color={theme.colors.white} />
+                    <Text style={{ 
+                      ...theme.typography.bodyBold, 
+                      color: theme.colors.white, 
+                      fontSize: 17,
+                      marginLeft: theme.spacing.sm
+                    }}>
+                      Buy Gold
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {user?.kycStatus === 'rejected' && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (user) {
+                      dispatch(updateUser({ ...user, kycStatus: 'none' }));
+                    }
+                    setPanNumber('');
+                    setAadhaarNumber('');
+                    setErrors({ pan: '', aadhaar: '' });
+                  }}
                   style={{
                     backgroundColor: theme.colors.primary,
                     borderRadius: theme.borderRadius.xl,
                     paddingVertical: theme.spacing.lg,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: theme.spacing.lg,
+                    marginBottom: theme.spacing.md,
                     ...theme.shadows.lg,
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
-                    Buy Gold
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="refresh" size={20} color={theme.colors.white} />
+                    <Text style={{ 
+                      ...theme.typography.bodyBold, 
+                      color: theme.colors.white, 
+                      fontSize: 17,
+                      marginLeft: theme.spacing.sm
+                    }}>
+                      Resubmit KYC
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               )}
             </>
@@ -369,6 +439,21 @@ export const KYCScreen: React.FC<KYCScreenProps> = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Success Modal */}
+      <ModalAlert
+        type="success"
+        title="KYC Submitted Successfully! ✅"
+        message="Your KYC documents have been submitted for verification. You will be notified once verified.
+
+(Demo: Auto-verification in 5 seconds)"
+        visible={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        primaryButton={{
+          label: 'Got it!',
+          onPress: handleSuccessModalClose,
+        }}
+      />
     </View>
   );
 };

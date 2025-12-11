@@ -4,24 +4,26 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logout, updateUser } from '../store/authSlice';
-import { Card } from '../components/Card';
 import { Input } from '../components/Input';
-import { Button } from '../components/Button';
 import { theme } from '../theme';
+import { useAlert } from '../contexts/AlertContext';
+import { ModalAlert } from '../components/ModalAlert';
+import { useGoogleAuth } from '../services/expoGoogleAuth';
 
 interface ProfileScreenProps {
   navigation: any;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const { signOutGoogle } = useGoogleAuth();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+  const { showSuccess, showError, showWarning } = useAlert();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,39 +32,46 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     phone: user?.phone || '',
   });
   const [loading, setLoading] = useState(false);
+  
+  // Modal states
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleSave = async () => {
     setLoading(true);
     try {
+      // Validate inputs
+      if (!formData.name.trim()) {
+        showError('Invalid Input', 'Name cannot be empty');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.email.trim() || !formData.email.includes('@')) {
+        showError('Invalid Email', 'Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
       if (user) {
         dispatch(updateUser({ ...user, ...formData }));
       }
       
       setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully!');
+      showSuccess('Profile Updated', 'Your changes have been saved successfully');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update profile');
+      showError('Update Failed', error.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(logout());
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    setShowLogoutModal(false);
+    dispatch(logout());
+    await signOutGoogle();
+    showSuccess('Logged Out', 'See you soon!');
   };
+
 
   const getKYCStatusColor = (status: string) => {
     switch (status) {
@@ -356,18 +365,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               icon="notifications-outline"
               label="Push Notifications"
               value={true}
-              onValueChange={() => {}}
+              onValueChange={(value) => {
+                showWarning('Coming Soon', 'Push notifications will be available in the next update');
+              }}
             />
             <SettingRow
               icon="moon-outline"
               label="Dark Mode"
               value={false}
-              onValueChange={() => {}}
+              onValueChange={(value) => {
+                showWarning('Coming Soon', 'Dark mode will be available in the next update');
+              }}
+            />
+            <SettingRow
+              icon="finger-print"
+              label="Biometric Login"
+              value={false}
+              onValueChange={(value) => {
+                showWarning('Coming Soon', 'Biometric authentication will be available in the next update');
+              }}
               showBorder={false}
             />
           </View>
 
-          {/* Actions */}
+          {/* Security */}
           <View style={{
             backgroundColor: theme.colors.white,
             borderRadius: theme.borderRadius.xl,
@@ -375,27 +396,79 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             marginBottom: theme.spacing.lg,
             ...theme.shadows.md,
           }}>
+            <Text style={{ 
+              ...theme.typography.h3,
+              color: theme.colors.black,
+              marginBottom: theme.spacing.lg
+            }}>
+              Security
+            </Text>
+            <MenuItem
+              icon="lock-closed-outline"
+              title="Change Password"
+              onPress={() => {
+                showWarning('Coming Soon', 'Password change feature will be available soon');
+              }}
+            />
+            <MenuItem
+              icon="key-outline"
+              title="Two-Factor Authentication"
+              onPress={() => {
+                showWarning('Coming Soon', 'Two-factor authentication will be available soon');
+              }}
+              showBorder={false}
+            />
+          </View>
+
+          {/* Support & Legal */}
+          <View style={{
+            backgroundColor: theme.colors.white,
+            borderRadius: theme.borderRadius.xl,
+            padding: theme.spacing.lg,
+            marginBottom: theme.spacing.lg,
+            ...theme.shadows.md,
+          }}>
+            <Text style={{ 
+              ...theme.typography.h3,
+              color: theme.colors.black,
+              marginBottom: theme.spacing.lg
+            }}>
+              Support & Legal
+            </Text>
             <MenuItem
               icon="help-circle-outline"
               title="Help & Support"
-              onPress={() => Alert.alert('Help', 'Contact support@goldvault.com')}
+              onPress={() => {
+                showWarning('Coming Soon', 'Help & Support feature will be available soon');
+              }}
             />
             <MenuItem
               icon="document-text-outline"
               title="Terms & Conditions"
-              onPress={() => Alert.alert('Terms', 'Terms & Conditions')}
+              onPress={() => {
+                showWarning('Coming Soon', 'Terms & Conditions feature will be available soon');
+              }}
             />
             <MenuItem
               icon="shield-checkmark-outline"
               title="Privacy Policy"
-              onPress={() => Alert.alert('Privacy', 'Privacy Policy')}
+              onPress={() => {
+                showWarning('Coming Soon', 'Privacy Policy feature will be available soon');
+              }}
+            />
+            <MenuItem
+              icon="chatbubble-ellipses-outline"
+              title="Send Feedback"
+              onPress={() => {
+                showSuccess('Thank You!', 'We appreciate your feedback');
+              }}
               showBorder={false}
             />
           </View>
 
           {/* Logout Button */}
           <TouchableOpacity
-            onPress={handleLogout}
+            onPress={() => setShowLogoutModal(true)}
             style={{
               backgroundColor: theme.colors.red,
               borderRadius: theme.borderRadius.xl,
@@ -428,6 +501,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <ModalAlert
+        type="warning"
+        title="Logout"
+        message="Are you sure you want to logout?"
+        visible={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        primaryButton={{
+          label: 'Logout',
+          onPress: handleLogout,
+        }}
+        secondaryButton={{
+          label: 'Stay In',
+          onPress: () => setShowLogoutModal(false),
+        }}
+      />
+
     </View>
   );
 };
@@ -549,9 +640,10 @@ interface MenuItemProps {
   title: string;
   onPress: () => void;
   showBorder?: boolean;
+  isDanger?: boolean;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, showBorder = true }) => (
+const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, showBorder = true, isDanger = false }) => (
   <TouchableOpacity
     onPress={onPress}
     style={{
@@ -566,14 +658,17 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, title, onPress, showBorder = 
   >
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <View style={{
-        backgroundColor: theme.colors.gray100,
+        backgroundColor: isDanger ? theme.colors.red + '20' : theme.colors.gray100,
         padding: theme.spacing.sm,
         borderRadius: theme.borderRadius.md,
         marginRight: theme.spacing.md,
       }}>
-        <Ionicons name={icon} size={20} color={theme.colors.gray500} />
+        <Ionicons name={icon} size={20} color={isDanger ? theme.colors.red : theme.colors.gray500} />
       </View>
-      <Text style={{ ...theme.typography.body, color: theme.colors.black }}>
+      <Text style={{ 
+        ...theme.typography.body, 
+        color: isDanger ? theme.colors.red : theme.colors.black 
+      }}>
         {title}
       </Text>
     </View>

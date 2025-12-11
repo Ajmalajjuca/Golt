@@ -4,16 +4,28 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../store/hooks';
-import { Card } from '../components/Card'; 
-import { Button } from '../components/Button';
 import { orderService, priceService } from '../services';
 import { theme } from '../theme';
+import { useAlert } from '../contexts/AlertContext';
+import { ModalAlert } from '../components/ModalAlert';
+import {
+  CFPaymentGatewayService,
+  CFErrorResponse,
+} from 'react-native-cashfree-pg-sdk';
+import {
+  CFSession,
+  CFEnvironment,
+  CFThemeBuilder,
+  CFUPIIntentCheckoutPayment,
+  CFDropCheckoutPayment,
+  CFPaymentComponentBuilder,
+  CFPaymentModes,
+} from 'cashfree-pg-api-contract';
 
 interface BuyGoldScreenProps {
   navigation?: any;
@@ -31,14 +43,37 @@ const formatNumericInput = (text: string) => {
 export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
   const navigation = useNavigation<any>();
   const { user } = useAppSelector((state) => state.auth);
+  const { showSuccess, showError } = useAlert();
   
   const [amount, setAmount] = useState('');
   const [goldGrams, setGoldGrams] = useState(0);
   const [buyPrice, setBuyPrice] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Modal states
+  const [showKYCModal, setShowKYCModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState<string>('');
 
   useEffect(() => {
     loadPrice();
+    
+    // Setup Cashfree callback
+    CFPaymentGatewayService.setCallback({
+      onVerify: async (orderIdFromCashfree: string) => {
+        console.log('✅ Payment verification callback:', orderIdFromCashfree);
+        await handlePaymentVerification(orderIdFromCashfree);
+      },
+      onError: (error: CFErrorResponse, orderIdFromCashfree: string) => {
+        console.error('❌ Payment error:', error);
+        setLoading(false);
+        showError('Payment Failed', (error as any)?.message || 'Payment could not be completed.');
+      },
+    });
+
+    return () => {
+      CFPaymentGatewayService.removeCallback();
+    };
   }, []);
 
   useEffect(() => {
@@ -58,10 +93,10 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
 
   const loadPrice = async () => {
     try {
-      const response = await priceService.getLivePrice();
+      const response = await priceService.getCurrentPrice();
       setBuyPrice(response.data.buyPrice);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load price');
+      showError('Error', 'Failed to load price. Please try again.');
     }
   };
   
@@ -69,69 +104,115 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
     const cleanedAmount = amount.replace(/[^0-9.]/g, '');
     const amountNum = parseFloat(cleanedAmount);
     
+    // Validation
     if (isNaN(amountNum) || amountNum < 100) {
-      Alert.alert('Invalid Amount', 'Minimum purchase amount is ₹100');
+      showError('Invalid Amount', 'Minimum purchase amount is ₹100');
       return;
     }
     
     if (buyPrice <= 0) {
-      Alert.alert('Price Not Available', 'The live gold price has not loaded yet. Please wait or tap refresh.');
+      showError('Price Not Available', 'Please wait for the price to load or tap refresh.');
       return;
     }
 
+    // KYC Check
     if (user?.kycStatus !== 'verified') {
-      Alert.alert(
-        'KYC Required',
-        'Please complete KYC verification before buying gold',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Complete KYC', 
-            onPress: () => navigation.navigate('KYC')
-          },
-        ]
-      );
+      setShowKYCModal(true);
       return;
     }
 
+    // Proceed to payment
+    await initiatePurchase(amountNum);
+  };
+
+  const initiatePurchase = async (amountNum: number) => {
     setLoading(true);
     try {
+      // Step 1: Create order on backend
       const response = await orderService.initiateBuy(amountNum);
+      const { order_id, payment_session_id } = response.data;
       
-      Alert.alert(
-        'Payment',
-        'In production, Razorpay payment gateway will open here. For now, simulating payment success...',
-        [
-          {
-            text: 'OK',
-            onPress: async () => {
-              try {
-                await orderService.verifyPayment(
-                  response.data.order._id,
-                  'mock_payment_id',
-                  'mock_signature'
-                );
-                
-                Alert.alert(
-                  'Success! 🎉',
-                  `You have successfully purchased ${goldGrams.toFixed(4)}g of gold!`,
-                  [{ 
-                    text: 'OK', 
-                    onPress: () => navigation.goBack()
-                  }]
-                );
-              } catch (error: any) {
-                Alert.alert('Error', error.message || 'Payment verification failed');
-              }
-            },
-          },
-        ]
+      setCurrentOrderId(order_id);
+      
+      console.log('🚀 Order created:', { order_id, payment_session_id });
+      
+      // Step 2: Create CFSession using constructor
+      const session = new CFSession(
+        payment_session_id,
+        order_id,
+        CFEnvironment.SANDBOX // Use CFEnvironment.PRODUCTION for live
       );
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to initiate purchase');
-    } finally {
+      
+      console.log('✅ Session created');
+      
+      // Step 3: Create custom theme (optional)
+      const cfTheme = new CFThemeBuilder()
+        .setNavigationBarBackgroundColor(theme.colors.primary) // iOS
+        .setNavigationBarTextColor(theme.colors.white) // iOS
+        .setButtonBackgroundColor(theme.colors.primary) // iOS
+        .setButtonTextColor(theme.colors.white) // iOS
+        .setPrimaryTextColor(theme.colors.black)
+        .setSecondaryTextColor(theme.colors.gray500) // iOS
+        .build();
+
+        const components = new CFPaymentComponentBuilder()
+        .add(CFPaymentModes.CARD)
+        .add(CFPaymentModes.PAYPAL)
+        .add(CFPaymentModes.PAY_LATER)
+        .add(CFPaymentModes.NB)
+        .add(CFPaymentModes.UPI)
+        .add(CFPaymentModes.WALLET)
+        .add(CFPaymentModes.EMI)
+        .build();
+      
+      // Step 4: Create UPI Intent Checkout Payment
+      const dropCheckoutPayment = new CFDropCheckoutPayment(
+        session,
+        components,
+        cfTheme,
+      );
+      
+      console.log('🚀 Starting UPI Intent payment...');
+      
+      // Step 5: Launch UPI Intent payment
+      CFPaymentGatewayService.doPayment(dropCheckoutPayment);
+      
       setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Purchase initiation error:', error);
+      showError('Purchase Failed', error.message || 'Failed to initiate purchase. Please try again.');
     }
+  };
+
+  const handlePaymentVerification = async (orderIdFromCashfree: string) => {
+    setLoading(true);
+
+    try {
+      console.log('🔍 Verifying payment for order:', orderIdFromCashfree);
+      
+      // Call backend to verify payment with Cashfree
+      const response = await orderService.verifyPayment(orderIdFromCashfree);
+      
+      setLoading(false);
+      
+      if (response.data.status === 'completed') {
+        setShowSuccessModal(true);
+      } else {
+        showError('Payment Failed', 'Payment verification failed. Please contact support.');
+      }
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Payment verification error:', error);
+      showError('Verification Failed', error.message || 'Failed to verify payment.');
+    }
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false);
+    setAmount('');
+    setGoldGrams(0);
+    navigation.goBack();
   };
 
   const quickAmounts = [500, 1000, 2000, 5000];
@@ -353,7 +434,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
               </Text>
             ) : (
               <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
-                Buy Gold for ₹{amount || '0'}
+                Pay via UPI - ₹{amount || '0'}
               </Text>
             )}
           </TouchableOpacity>
@@ -380,7 +461,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
                 <Text style={{ ...theme.typography.small, color: '#3B82F6', lineHeight: 20 }}>
                   1. Enter the amount you want to invest{'\n'}
                   2. Review the gold quantity you'll receive{'\n'}
-                  3. Complete payment via Razorpay{'\n'}
+                  3. Select your UPI app to complete payment{'\n'}
                   4. Gold will be added to your wallet instantly
                 </Text>
               </View>
@@ -388,6 +469,52 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* KYC Required Modal */}
+      <ModalAlert
+        type="warning"
+        title="KYC Verification Required"
+        message="You need to complete KYC verification before purchasing gold. Would you like to proceed to the KYC section now?"
+        visible={showKYCModal}
+        onClose={() => setShowKYCModal(false)}
+        primaryButton={{
+          label: 'Go to KYC',
+          onPress: () => {
+            setShowKYCModal(false);
+            navigation.navigate('KYC');
+          },
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onPress: () => setShowKYCModal(false),
+        }}
+      />
+
+      {/* Success Modal */}
+      <ModalAlert
+        type="success"
+        title="Purchase Successful! 🎉"
+        message={`You have successfully purchased ${goldGrams.toFixed(4)}g of gold for ₹${parseFloat(amount || '0').toLocaleString('en-IN')}.
+
+The gold has been added to your portfolio.`}
+        visible={showSuccessModal}
+        onClose={handleSuccessClose}
+        primaryButton={{
+          label: 'View Portfolio',
+          onPress: () => {
+            setShowSuccessModal(false);
+            navigation.navigate('Wallet');
+          },
+        }}
+        secondaryButton={{
+          label: 'Buy More',
+          onPress: () => {
+            setShowSuccessModal(false);
+            setAmount('');
+            setGoldGrams(0);
+          },
+        }}
+      />
     </View>
   );
 };

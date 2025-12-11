@@ -4,17 +4,16 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAppSelector } from '../store/hooks';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
 import { orderService, priceService, walletService } from '../services';
 import { WalletData } from '../types';
 import { theme } from '../theme';
+import { useAlert } from '../contexts/AlertContext';
+import { ModalAlert } from '../components/ModalAlert';
 
 interface SellGoldScreenProps {
   navigation?: any;
@@ -37,6 +36,8 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   const [sellPrice, setSellPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const { showSuccess, showError, showAlert } = useAlert();
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -59,59 +60,71 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   const loadData = async () => {
     try {
       const [priceResponse, walletResponse] = await Promise.all([
-        priceService.getLivePrice(),
+        priceService.getCurrentPrice(),
         walletService.getWallet(),
       ]);
       setSellPrice(priceResponse.data.sellPrice);
       setWalletData(walletResponse.data);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load data');
+      showError('Error', 'Failed to load data');
     }
   };
 
-  const handleSell = async () => {
+  const handleSell = () => {
     const cleanedGrams = goldGrams.replace(/[^0-9.]/g, '');
     const gramsNum = parseFloat(cleanedGrams);
     
+    // Validation checks BEFORE showing confirmation
     if (!gramsNum || gramsNum <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid gold quantity');
+      showError('Invalid Amount', 'Please enter a valid gold quantity');
       return;
     }
 
     if (!walletData || gramsNum > walletData.goldBalance) {
-      Alert.alert('Insufficient Balance', 'You do not have enough gold to sell');
+      showError('Insufficient Balance', 'You do not have enough gold to sell');
       return;
     }
 
-    Alert.alert(
-      'Confirm Sale',
-      `Are you sure you want to sell ${gramsNum.toFixed(4)}g of gold for ₹${amountToReceive.toFixed(2)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sell',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await orderService.initiateSell(gramsNum);
-              Alert.alert(
-                'Success! 🎉',
-                `You have successfully sold ${gramsNum.toFixed(4)}g of gold!\n\n₹${amountToReceive.toFixed(2)} has been added to your wallet.`,
-                [{ 
-                  text: 'OK', 
-                  onPress: () => navigation.goBack()
-                }]
-              );
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to sell gold');
-            } finally {
-              setLoading(false);
-            }
+    // All validations passed, show confirmation modal
+    setShowConfirm(true);
+  };
+
+  const confirmSell = async () => {
+    const cleanedGrams = goldGrams.replace(/[^0-9.]/g, '');
+    const gramsNum = parseFloat(cleanedGrams);
+
+    setLoading(true);
+    setShowConfirm(false); // Close modal first
+    
+    try {
+      await orderService.initiateSell(gramsNum);
+      
+      // Show success alert
+      showAlert({
+        type: 'success',
+        title: 'Sale Successful! 🎉',
+        message: `You have successfully sold ${gramsNum.toFixed(4)}g of gold for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
+        duration: 0, // Don't auto-dismiss
+        action: {
+          label: 'View Wallet',
+          onPress: () => {
+            navigation.navigate('Wallet');
           },
         },
-      ]
-    );
+      });
+
+      // Reset form
+      setGoldGrams('');
+      setAmountToReceive(0);
+      
+      // Reload wallet data
+      await loadData();
+      
+    } catch (error: any) {
+      showError('Sale Failed', error.message || 'Failed to sell gold. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const quickPercentages = [25, 50, 75, 100];
@@ -397,6 +410,23 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <ModalAlert
+        type="warning"
+        title="Confirm Sale"
+        message={`Are you sure you want to sell ${goldGrams}g of gold for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}?`}
+        visible={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        primaryButton={{
+          label: 'Confirm Sale',
+          onPress: confirmSell,
+        }}
+        secondaryButton={{
+          label: 'Cancel',
+          onPress: () => setShowConfirm(false),
+        }}
+      />
     </View>
   );
 };

@@ -4,11 +4,14 @@ import { store } from "./src/store";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import "./global.css";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AlertProvider } from "./src/contexts/AlertContext";
 
 const App = () => {
   return (
       <Provider store={store}>
+        <AlertProvider>
         <AppNavigator />
+        </AlertProvider>
       </Provider>
   );
 };

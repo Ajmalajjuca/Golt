@@ -33,7 +33,7 @@ export const CustomTabBar: React.FC<CustomTabBarProps> = ({
   const fabRotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    animatedValues.forEach((anim, index) => {
+    animatedValues.forEach((anim: any, index: number) => {
       Animated.spring(anim, {
         toValue: state.index === index ? 1 : 0,
         tension: 50,

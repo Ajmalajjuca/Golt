@@ -4,9 +4,8 @@ export type UserRole = 'user' | 'admin';
 export type KYCStatus = 'none' | 'pending' | 'verified' | 'rejected';
 
 export interface IUser {
-  _id?: Types.ObjectId;
+  _id: Types.ObjectId;
   name: string;
-  email: string;
   email: string;
   googleId?: string;
   phone?: string;

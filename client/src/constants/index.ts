@@ -1,5 +1,5 @@
-export const API_BASE_URL = __DEV__ 
-  ? 'https://golt.onrender.com/api'  // Replace with your local IP
+export const API_BASE_URL = __DEV__
+  ? 'http://192.168.150.239:5000/api'  // Replace with your local IP
   : 'https://golt.onrender.com/api';
 
 export const RAZORPAY_KEY_ID = 'rzp_test_xxxxxxxxxx'; // Replace with actual key

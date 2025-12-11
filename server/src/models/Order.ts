@@ -10,38 +10,31 @@ export interface IOrder extends Document {
   goldGrams: number;
   pricePerGram: number;
   status: OrderStatus;
-  paymentId?: string;
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
-  razorpaySignature?: string;
+  cashfreeOrderId?: string;
+  paymentSessionId?: string;
   providerOrderId?: string; // SafeGold/Augmont order ID
-  failureReason?: string;
+  providerPaymentId?: string;
   createdAt: Date;
   completedAt?: Date;
 }
 
-const orderSchema = new Schema<IOrder>(
-  {
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    type: { type: String, enum: ['buy', 'sell'], required: true },
-    amountInr: { type: Number, required: true },
-    goldGrams: { type: Number, required: true },
-    pricePerGram: { type: Number, required: true },
-    status: { 
-      type: String, 
-      enum: ['pending', 'payment_pending', 'completed', 'failed', 'cancelled'], 
-      default: 'pending' 
-    },
-    paymentId: { type: String },
-    razorpayOrderId: { type: String },
-    razorpayPaymentId: { type: String },
-    razorpaySignature: { type: String },
-    providerOrderId: { type: String },
-    failureReason: { type: String },
-    completedAt: { type: Date },
+const orderSchema = new Schema({
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  type: { type: String, enum: ['buy', 'sell'], required: true },
+  amountInr: { type: Number, required: true },
+  goldGrams: { type: Number, required: true },
+  pricePerGram: { type: Number, required: true },
+  status: {
+    type: String,
+    enum: ['payment_pending', 'pending', 'completed', 'failed', 'cancelled'],
+    default: 'payment_pending',
   },
-  { timestamps: true }
-);
+  cashfreeOrderId: { type: String },
+  paymentSessionId: { type: String },
+  providerOrderId: { type: String },
+  providerPaymentId: { type: String },
+  completedAt: { type: Date },
+}, { timestamps: true });
 
 // Index for faster queries
 orderSchema.index({ user: 1, createdAt: -1 });

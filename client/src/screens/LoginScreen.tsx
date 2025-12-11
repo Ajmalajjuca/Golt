@@ -12,7 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAppDispatch } from '../store/hooks';
 import { googleLogin } from '../store/authSlice';
-import { signInWithGoogle } from '../services/expoGoogleAuth';
+import { useAlert } from '../contexts/AlertContext';
+import { useGoogleAuth } from '../services/expoGoogleAuth';
 
 const { height } = Dimensions.get('window');
 
@@ -23,9 +24,12 @@ interface LoginScreenProps {
 type TabType = 'Quick Buy' | 'Track Gold' | 'Build Wealth';
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+  const { signInWithGoogle } = useGoogleAuth();
   const [selectedTab, setSelectedTab] = useState<TabType>('Track Gold');
   const [isLoading, setIsLoading] = useState(false);
   const dispatch = useAppDispatch();
+    const { showSuccess, showError } = useAlert();
+  
   
   // Animation values
   const earnOpacity = useRef(new Animated.Value(0.25)).current;
@@ -79,22 +83,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         
         // Dispatch the login action with the ID token
         const actionResult = await dispatch(googleLogin(result.idToken)).unwrap();
-        Alert.alert('Success', `Welcome ${actionResult.user.name}!`);
+        showSuccess('Login Success', `Welcome ${actionResult.user.name}!`);
         
         // Navigate to Home screen
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       } else if (result === null) {
         // User cancelled the sign-in
         console.log('User cancelled Google Sign In');
       } else {
-        Alert.alert('Error', 'Could not get ID Token from Google');
+        showError('Error', 'Could not get ID Token from Google');
       }
     } catch (error) {
       console.error('Google login error:', error);
-      Alert.alert(
-        'Login Failed', 
-        error instanceof Error ? error.message : 'Could not sign in with Google'
-      );
+      showError('Login Failed', error instanceof Error ? error.message : 'Could not sign in with Google');
     } finally {
       setIsLoading(false);
     }
