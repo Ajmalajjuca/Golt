@@ -48,7 +48,7 @@ export class CashfreeService {
           customer_name: "Customer", // Optional but recommended
         },
         order_meta: {
-          return_url: `${config.app?.url || "https://yourapp.com"}/payment-return?order_id=${orderId}`
+          return_url: `${"https://yourapp.com"}/payment-return?order_id=${orderId}`
         }
       };
 
