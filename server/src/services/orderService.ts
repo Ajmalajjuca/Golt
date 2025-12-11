@@ -53,7 +53,7 @@ export class OrderService {
    */
   async verifyAndCompleteBuyOrder(cashfreeOrderId: string) {
     // Find order in database
-    const order = await Order.findOne({ cashfreeOrderId });
+    const order = await Order.findOne({ cashfreeOrderId }) as any;
     if (!order) throw new AppError('Order not found', 404);
 
     // Check if already completed
@@ -121,7 +121,7 @@ export class OrderService {
       goldGrams,
       pricePerGram,
       status: 'pending',
-    });
+    }) as any;
 
     // Complete immediately (in production, this might be async)
     order.status = 'completed';

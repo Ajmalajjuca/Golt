@@ -78,7 +78,7 @@ export class CashfreeService {
       console.error("❌ Cashfree order creation failed:", {
         status: error.response?.status,
         data: error.response?.data,
-        headers: error.response?.headers, cfsk_ma_test_6a2abe4056e96fccf7267ae3534fcc87_a84818a7
+        headers: error.response?.headers,
       });
 
       throw new Error(

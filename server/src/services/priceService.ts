@@ -215,7 +215,7 @@ export class PriceService {
       };
 
     } catch (error) {
-      console.error("FreeGoldPrice API error:", error.response.data.error);
+      console.error("FreeGoldPrice API error:", (error as any).response.data.error);
       return null;
     }
   }
