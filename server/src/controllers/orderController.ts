@@ -12,7 +12,7 @@ const orderService = new OrderService();
  * @access Private
  */
 export const initiateBuy = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const { amount } = req.body;
+  const { amount, metalType } = req.body;
   const user = req.user;
 
   if (!user) {
@@ -23,7 +23,7 @@ export const initiateBuy = catchAsync(async (req: Request, res: Response, next: 
     return next(new AppError('Please provide a valid amount', 400));
   }
 
-  const result = await orderService.initiateBuyOrder(user, amount);
+  const result = await orderService.initiateBuyOrder(user, amount, metalType || 'gold');
 
   return ApiResponse.success(res, result, 'Buy order initiated successfully', 201);
 });
@@ -78,14 +78,16 @@ export const cashfreeWebhook = catchAsync(async (req: Request, res: Response, ne
  * @access Private
  */
 export const initiateSell = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const { goldGrams } = req.body;
+  const { goldGrams, quantity, metalType } = req.body;
   const userId = req.user?._id;
 
-  if (!goldGrams || goldGrams <= 0) {
-    return next(new AppError('Please provide valid gold grams', 400));
+  const qty = quantity || goldGrams; // Support both for backward compatibility
+
+  if (!qty || qty <= 0) {
+    return next(new AppError('Please provide valid quantity', 400));
   }
 
-  const order = await orderService.initiateSellOrder(userId!.toString(), goldGrams);
+  const order = await orderService.initiateSellOrder(userId!.toString(), qty, metalType || 'gold');
 
   return ApiResponse.success(res, order, 'Gold sold successfully', 201);
 });

@@ -1,8 +1,6 @@
 // schedulers/priceScheduler.ts
 import cron from 'node-cron';
-import { PriceService } from '../services/priceService.js';
-
-const priceService = new PriceService();
+import { getGoldPriceService, getSilverPriceService } from '../services/priceService.js';
 
 // Update price every minute during market hours
 // Indian gold market: 9 AM to 11:30 PM IST (Mon-Sat)
@@ -15,9 +13,17 @@ export const startPriceScheduler = () => {
       const day = now.getDay();
 
       // Check if within market hours (9 AM - 11:30 PM) and not Sunday
+      // Note: Crypto/International markets are 24/7, but we stick to this schedule for now
       if (hour >= 9 && hour < 23.5 && day !== 0) {
-        await priceService.updatePrice();
-        console.log('Price updated:', priceService.getCurrentPriceInMemory());
+        const goldService = await getGoldPriceService();
+        const silverService = await getSilverPriceService();
+
+        await Promise.all([
+          goldService.updatePrice(),
+          silverService.updatePrice()
+        ]);
+
+        console.log('Prices updated');
       }
     } catch (error) {
       console.error('Error in price scheduler:', error);

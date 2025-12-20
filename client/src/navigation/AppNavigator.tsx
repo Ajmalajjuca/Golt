@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectMetalType } from '../store/priceSelectors';
 import { loadUser } from '../store/authSlice';
 import { ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ const Tab = createBottomTabNavigator();
 // Main Tab Navigator
 const MainTabs = ({ navigation: parentNavigation }: any) => {
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const metalType = useAppSelector(selectMetalType);
 
   return (
     <>
@@ -53,16 +55,18 @@ const MainTabs = ({ navigation: parentNavigation }: any) => {
         onClose={() => setShowActionMenu(false)}
         onBuyPress={() => {
           setShowActionMenu(false);
+          // Small delay to allow menu close animation
           setTimeout(() => {
-            parentNavigation.navigate('BuyGold');
+            parentNavigation.navigate('BuyGold', { metalType });
           }, 200);
         }}
         onSellPress={() => {
           setShowActionMenu(false);
           setTimeout(() => {
-            parentNavigation.navigate('SellGold');
+            parentNavigation.navigate('SellGold', { metalType });
           }, 200);
         }}
+        metalType={metalType}
       />
     </>
   );

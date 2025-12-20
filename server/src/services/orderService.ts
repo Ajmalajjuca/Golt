@@ -1,27 +1,27 @@
 import Order from '../models/Order.js';
 import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
-import { PriceService } from './priceService.js';
+import { PriceService, getGoldPriceService, getSilverPriceService } from './priceService.js';
 import { AppError } from '../utils/AppError.js';
 import crypto from 'crypto';
 import { IUser } from '../types/user.js';
 import { CashfreeService } from './cashfreeService.js';
-
-const priceService = new PriceService();
-const cashfreeService = new CashfreeService();
+import { MetalType } from '../models/Price.js';
 
 export class OrderService {
   /**
    * @desc Initiate a buy order
    */
-  async initiateBuyOrder(user: IUser, amountInr: number) {
+  async initiateBuyOrder(user: IUser, amountInr: number, metalType: MetalType = 'gold') {
     // Get current price
+    const priceService = metalType === 'gold' ? await getGoldPriceService() : await getSilverPriceService();
     const currentPrice = await priceService.getLatestPrice();
     if (!currentPrice) throw new AppError('Price not available', 500);
 
     const pricePerGram = currentPrice.buyPrice;
-    const goldGrams = amountInr / pricePerGram;
+    const quantity = amountInr / pricePerGram;
 
+    const cashfreeService = new CashfreeService();
     const { order_id, payment_session_id } = await cashfreeService.createOrder(
       amountInr,
       user._id.toString(),
@@ -33,8 +33,10 @@ export class OrderService {
     const order = await Order.create({
       user: user._id,
       type: 'buy',
+      metalType,
       amountInr,
-      goldGrams,
+      quantity,
+      goldGrams: metalType === 'gold' ? quantity : 0, // Backward compatibility
       pricePerGram,
       status: 'payment_pending',
       cashfreeOrderId: order_id,
@@ -62,6 +64,7 @@ export class OrderService {
     }
 
     // Fetch order status from Cashfree
+    const cashfreeService = new CashfreeService();
     const cashfreeOrder = await cashfreeService.fetchOrder(cashfreeOrderId);
 
     console.log('📦 Cashfree order status:', cashfreeOrder);
@@ -78,19 +81,22 @@ export class OrderService {
     order.providerPaymentId = cashfreeOrder.payment_completion_time;
     await order.save();
 
-    // Update user's gold balance
+    // Update user's balance
+    const updateField = order.metalType === 'gold' ? 'goldBalance' : 'silverBalance';
     await User.findByIdAndUpdate(order.user, {
-      $inc: { goldBalance: order.goldGrams },
+      $inc: { [updateField]: order.quantity },
     });
 
     // Create transaction record
     await Transaction.create({
       user: order.user,
       amount: order.amountInr,
-      type: 'buy_gold',
+      type: order.metalType === 'gold' ? 'buy_gold' : 'buy_silver',
+      metalType: order.metalType,
+      quantity: order.quantity,
       status: 'success',
       referenceId: order._id.toString(),
-      description: `Bought ${order.goldGrams.toFixed(4)}g gold`,
+      description: `Bought ${order.quantity.toFixed(4)}g ${order.metalType}`,
     });
 
     return order;
@@ -99,26 +105,31 @@ export class OrderService {
   /**
    * @desc Initiate a sell order
    */
-  async initiateSellOrder(userId: string, goldGrams: number) {
+  async initiateSellOrder(userId: string, quantity: number, metalType: MetalType = 'gold') {
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found', 404);
-    if (user.goldBalance < goldGrams) {
-      throw new AppError('Insufficient gold balance', 400);
+
+    const userBalance = metalType === 'gold' ? user.goldBalance : user.silverBalance;
+    if (userBalance < quantity) {
+      throw new AppError(`Insufficient ${metalType} balance`, 400);
     }
 
     // Get current price
+    const priceService = metalType === 'gold' ? await getGoldPriceService() : await getSilverPriceService();
     const currentPrice = await priceService.getLatestPrice();
     if (!currentPrice) throw new AppError('Price not available', 500);
 
     const pricePerGram = currentPrice.sellPrice;
-    const amountInr = goldGrams * pricePerGram;
+    const amountInr = quantity * pricePerGram;
 
     // Create order
     const order = await Order.create({
       user: userId,
       type: 'sell',
+      metalType,
       amountInr,
-      goldGrams,
+      quantity,
+      goldGrams: metalType === 'gold' ? quantity : 0,
       pricePerGram,
       status: 'pending',
     }) as any;
@@ -130,9 +141,10 @@ export class OrderService {
     await order.save();
 
     // Update user balances
+    const balanceField = metalType === 'gold' ? 'goldBalance' : 'silverBalance';
     await User.findByIdAndUpdate(userId, {
       $inc: {
-        goldBalance: -goldGrams,
+        [balanceField]: -quantity,
         walletBalance: amountInr,
       },
     });
@@ -141,10 +153,12 @@ export class OrderService {
     await Transaction.create({
       user: userId,
       amount: amountInr,
-      type: 'sell_gold',
+      type: metalType === 'gold' ? 'sell_gold' : 'sell_silver',
+      metalType,
+      quantity,
       status: 'success',
       referenceId: order._id.toString(),
-      description: `Sold ${goldGrams.toFixed(4)}g gold`,
+      description: `Sold ${quantity.toFixed(4)}g ${metalType}`,
     });
 
     return order;

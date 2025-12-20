@@ -13,38 +13,43 @@ import { AppError } from '../utils/AppError.js';
  */
 export const getWallet = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.user?._id;
-  const user = await User.findById(userId).select('walletBalance goldBalance');
-  
+  const user = await User.findById(userId).select('walletBalance goldBalance silverBalance');
+
   if (!user) {
     return next(new AppError('User not found', 404));
   }
 
   // Calculate portfolio stats
   const orders = await Order.find({ user: userId, type: 'buy', status: 'completed' });
-  
+
   let totalInvested = 0;
   let totalGoldBought = 0;
-  
+
   orders.forEach(order => {
     totalInvested += order.amountInr;
-    totalGoldBought += order.goldGrams;
+    totalGoldBought += order.metalType === 'gold' ? order.quantity : 0;
   });
 
-  const avgBuyPrice = totalGoldBought > 0 ? totalInvested / totalGoldBought : 0;
+  // Calculate stats
+  const { PriceService, getGoldPriceService, getSilverPriceService } = await import('../services/priceService.js');
 
-  // Get current price for valuation
-  const priceService = (await import('../services/priceService.js')).PriceService;
-  const priceServiceInstance = new priceService();
-  const currentPrice = await priceServiceInstance.getLatestPrice();
-  const currentValue = user.goldBalance * (currentPrice?.sellPrice || 0);
-  const profitLoss = currentValue - (user.goldBalance * avgBuyPrice);
+  const goldPrice = await (await getGoldPriceService()).getLatestPrice();
+  const silverPrice = await (await getSilverPriceService()).getLatestPrice();
+
+  const goldValue = user.goldBalance * (goldPrice?.sellPrice || 0);
+  const silverValue = user.silverBalance * (silverPrice?.sellPrice || 0);
+  const currentValue = goldValue + silverValue;
+
+  const profitLoss = currentValue - totalInvested; // Simplified P&L calculation assuming all bought through platform
 
   return ApiResponse.success(res, {
     walletBalance: user.walletBalance,
     goldBalance: user.goldBalance,
+    silverBalance: user.silverBalance,
     totalInvested,
-    avgBuyPrice,
     currentValue,
+    goldValue,
+    silverValue,
     profitLoss,
     profitLossPercentage: totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0,
   }, 'Wallet details fetched successfully');

@@ -41,6 +41,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
     }
   };
 
+  console.log('walletdata:',walletData);
+  
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
@@ -48,14 +51,16 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
   };
 
   const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    return `₹${amount?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   };
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'buy_gold':
+      case 'buy_silver':
         return { name: 'arrow-down-circle' as const, color: theme.colors.green };
       case 'sell_gold':
+      case 'sell_silver':
         return { name: 'arrow-up-circle' as const, color: theme.colors.red };
       case 'deposit':
         return { name: 'add-circle' as const, color: '#3B82F6' };
@@ -70,8 +75,12 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
     switch (type) {
       case 'buy_gold':
         return 'Bought Gold';
+      case 'buy_silver':
+        return 'Bought Silver';
       case 'sell_gold':
         return 'Sold Gold';
+      case 'sell_silver':
+        return 'Sold Silver';
       case 'deposit':
         return 'Deposit';
       case 'withdrawal':
@@ -123,73 +132,169 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
 
         <View style={{ padding: theme.spacing.lg }}>
           {/* Balance Cards */}
-          <View style={{ 
-            flexDirection: 'row', 
-            marginBottom: theme.spacing.lg,
-            gap: theme.spacing.md 
-          }}>
-            {/* Cash Balance */}
-            <View style={{ flex: 1 }}>
+          {/* Balance Cards */}
+          <View>
+            {/* Cash Balance - Full Width */}
+            <View style={{ marginBottom: theme.spacing.lg }}>
               <View style={{
                 backgroundColor: theme.colors.green + '15',
                 borderRadius: theme.borderRadius.xl,
                 borderWidth: 1,
                 borderColor: theme.colors.green + '40',
                 padding: theme.spacing.lg,
-                
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between'
               }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
-                  <View style={{
-                    backgroundColor: theme.colors.green + '30',
-                    padding: 6,
-                    borderRadius: theme.borderRadius.sm,
-                    marginRight: theme.spacing.sm,
-                  }}>
-                    <Ionicons name="wallet" size={16} color={theme.colors.green} />
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
+                    <View style={{
+                      backgroundColor: theme.colors.green + '30',
+                      padding: 6,
+                      borderRadius: theme.borderRadius.sm,
+                      marginRight: theme.spacing.sm,
+                    }}>
+                      <Ionicons name="wallet" size={16} color={theme.colors.green} />
+                    </View>
+                    <Text style={{ ...theme.typography.small, color: theme.colors.gray600 }}>
+                      Cash Balance
+                    </Text>
                   </View>
-                  <Text style={{ ...theme.typography.small, color: theme.colors.gray600 }}>
-                    Cash
+                  <Text style={{ 
+                    fontSize: 28,
+                    fontWeight: '700',
+                    color: theme.colors.green
+                  }}>
+                    {walletData ? formatCurrency(walletData.walletBalance) : '₹0'}
                   </Text>
                 </View>
-                <Text style={{ 
-                  fontSize: 24,
-                  fontWeight: '700',
-                  color: theme.colors.green
+                
+                <View style={{
+                  backgroundColor: theme.colors.green + '20',
+                  padding: theme.spacing.sm,
+                  borderRadius: theme.borderRadius.lg,
                 }}>
-                  {walletData ? formatCurrency(walletData.walletBalance) : '₹0'}
-                </Text>
+                  <Ionicons name="add" size={24} color={theme.colors.green} />
+                </View>
               </View>
             </View>
 
-            {/* Gold Balance */}
-            <View style={{ flex: 1 }}>
-              <View style={{
-                backgroundColor: theme.colors.primary + '15',
-                borderRadius: theme.borderRadius.xl,
-                borderWidth: 1,
-                borderColor: theme.colors.primary + '40',
-                padding: theme.spacing.lg,
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
-                  <View style={{
-                    backgroundColor: theme.colors.primary + '30',
-                    padding: 6,
-                    borderRadius: theme.borderRadius.sm,
-                    marginRight: theme.spacing.sm,
-                  }}>
-                    <Ionicons name="diamond" size={16} color={theme.colors.primary} />
-                  </View>
-                  <Text style={{ ...theme.typography.small, color: theme.colors.gray600 }}>
-                    Gold
-                  </Text>
-                </View>
-                <Text style={{ 
-                  fontSize: 24,
-                  fontWeight: '700',
-                  color: theme.colors.primary
+            {/* Metal Balances - Side by Side */}
+            <View style={{ 
+              flexDirection: 'row', 
+              marginBottom: theme.spacing.lg,
+              gap: theme.spacing.md 
+            }}>
+              {/* Gold Balance */}
+              <View style={{ flex: 1 }}>
+                <View style={{
+                  backgroundColor: theme.colors.primary + '15',
+                  borderRadius: theme.borderRadius.xl,
+                  borderWidth: 1,
+                  borderColor: theme.colors.primary + '40',
+                  padding: theme.spacing.lg,
+                  marginBottom: theme.spacing.sm,
+                  minHeight: 140,
+                  justifyContent: 'space-between'
                 }}>
-                  {walletData ? `${walletData.goldBalance.toFixed(4)}g` : '0g'}
-                </Text>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
+                      <View style={{
+                        backgroundColor: theme.colors.primary + '30',
+                        padding: 6,
+                        borderRadius: theme.borderRadius.sm,
+                        marginRight: theme.spacing.sm,
+                      }}>
+                        <Ionicons name="diamond" size={16} color={theme.colors.primary} />
+                      </View>
+                      <Text style={{ ...theme.typography.small, color: theme.colors.gray600 }}>
+                        Gold
+                      </Text>
+                    </View>
+                    <Text style={{ 
+                      fontSize: 24,
+                      fontWeight: '700',
+                      color: theme.colors.primary,
+                      marginBottom: 4
+                    }}>
+                      {walletData ? `${walletData.goldBalance.toFixed(4)}g` : '0g'}
+                    </Text>
+                    <Text style={{ ...theme.typography.tiny, color: theme.colors.gray500 }}>
+                      {walletData ? formatCurrency(walletData.goldValue || 0) : '₹0'}
+                    </Text>
+                  </View>
+                </View>
+                {/* Sell Gold Button */}
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('SellGold', { metalType: 'gold' })}
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    paddingVertical: 10,
+                    borderRadius: theme.borderRadius.lg,
+                    alignItems: 'center',
+                    ...theme.shadows.sm
+                  }}
+                >
+                   <Text style={{ ...theme.typography.small, fontWeight: '700', color: theme.colors.white }}>
+                     Sell Gold
+                   </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Silver Balance */}
+              <View style={{ flex: 1 }}>
+                <View style={{
+                  backgroundColor: theme.colors.gray400 + '15',
+                  borderRadius: theme.borderRadius.xl,
+                  borderWidth: 1,
+                  borderColor: theme.colors.gray400 + '40',
+                  padding: theme.spacing.lg,
+                  marginBottom: theme.spacing.sm,
+                  minHeight: 140,
+                  justifyContent: 'space-between'
+                }}>
+                  <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.xs }}>
+                      <View style={{
+                        backgroundColor: theme.colors.gray400 + '30',
+                        padding: 6,
+                        borderRadius: theme.borderRadius.sm,
+                        marginRight: theme.spacing.sm,
+                      }}>
+                        <Ionicons name="diamond-outline" size={16} color={theme.colors.gray600} />
+                      </View>
+                      <Text style={{ ...theme.typography.small, color: theme.colors.gray600 }}>
+                        Silver
+                      </Text>
+                    </View>
+                    <Text style={{ 
+                      fontSize: 24,
+                      fontWeight: '700',
+                      color: theme.colors.gray600,
+                      marginBottom: 4
+                    }}>
+                      {walletData ? `${(walletData.silverBalance || 0).toFixed(4)}g` : '0g'}
+                    </Text>
+                    <Text style={{ ...theme.typography.tiny, color: theme.colors.gray500 }}>
+                      {walletData ? formatCurrency(walletData.silverValue || 0) : '₹0'}
+                    </Text>
+                  </View>
+                </View>
+                {/* Sell Silver Button */}
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('SellGold', { metalType: 'silver' })}
+                  style={{
+                    backgroundColor: theme.colors.gray600,
+                    paddingVertical: 10,
+                    borderRadius: theme.borderRadius.lg,
+                    alignItems: 'center',
+                    ...theme.shadows.sm
+                  }}
+                >
+                   <Text style={{ ...theme.typography.small, fontWeight: '700', color: theme.colors.white }}>
+                     Sell Silver
+                   </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -219,10 +324,6 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
                 <StatRow
                   label="Current Value"
                   value={formatCurrency(walletData.currentValue)}
-                />
-                <StatRow
-                  label="Average Buy Price"
-                  value={`${formatCurrency(walletData.avgBuyPrice)}/g`}
                 />
                 
                 <View style={{

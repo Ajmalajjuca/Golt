@@ -88,22 +88,25 @@ export const authService = {
 
 export const priceService = {
   /**
-   * Get current/live gold price
+   * Get current/live gold/silver price
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @returns Current buy and sell prices
    */
-  getCurrentPrice: async () => {
-    return api.get<any, ApiResponse<PriceData>>('/price/current');
+  getCurrentPrice: async (metalType: 'gold' | 'silver' = 'gold') => {
+    return api.get<any, ApiResponse<PriceData>>(`/price/current/${metalType}`);
   },
 
   /**
    * Get price history with flexible time periods
    * @param period - Time period: 1H, 4H, 1D, 1W, 2W, 1M, 3M, 6M, 1Y, ALL
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @param interval - Optional: Sampling interval (1m, 5m, 15m, 1h, 1d, auto)
    * @param limit - Optional: Maximum number of records
    * @returns Price history with statistics
    */
   getPriceHistory: async (
     period: string = '1D',
+    metalType: 'gold' | 'silver' = 'gold',
     interval?: string,
     limit?: number
   ) => {
@@ -112,53 +115,57 @@ export const priceService = {
     if (limit) params.append('limit', limit.toString());
 
     return api.get<any, ApiResponse<PriceHistoryData>>(
-      `/price/history?${params.toString()}`
+      `/price/history/${metalType}?${params.toString()}`
     );
   },
 
   /**
    * Get optimized chart data (max 50 points for smooth rendering)
    * @param period - Time period: 1H, 4H, 1D, 1W, 1M, 3M, 6M, 1Y, ALL
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @returns Optimized price data for charts
    */
-  getChartData: async (period: string = '1D') => {
+  getChartData: async (period: string = '1D', metalType: 'gold' | 'silver' = 'gold') => {
     return api.get<any, ApiResponse<ChartData>>(
-      `/price/chart?period=${period}`
+      `/price/chart/${metalType}?period=${period}`
     );
   },
 
   /**
    * Get price statistics for a time period
    * @param period - Time period: 1D, 1W, 1M, 3M, 6M, 1Y, ALL
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @returns Comprehensive price statistics
    */
-  getStatistics: async (period: string = '1D') => {
+  getStatistics: async (period: string = '1D', metalType: 'gold' | 'silver' = 'gold') => {
     return api.get<any, ApiResponse<PriceHistoryData['statistics'] & { period: string; dataPoints: number }>>(
-      `/price/statistics?period=${period}`
+      `/price/statistics/${metalType}?period=${period}`
     );
   },
 
   /**
    * Compare current price with historical prices across multiple periods
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @returns Price comparisons for 1H, 1D, 1W, 1M, 3M, 6M, 1Y
    */
-  comparePrices: async () => {
+  comparePrices: async (metalType: 'gold' | 'silver' = 'gold') => {
     return api.get<any, ApiResponse<PriceComparisonData>>(
-      '/price/compare'
+      `/price/compare/${metalType}`
     );
   },
 
   /**
    * Force refresh price from live API
+   * @param metalType - 'gold' | 'silver' (default: 'gold')
    * @returns Updated price data
    */
-  refreshPrice: async () => {
-    return api.post<any, ApiResponse<PriceData>>('/price/refresh');
+  refreshPrice: async (metalType: 'gold' | 'silver' = 'gold') => {
+    return api.post<any, ApiResponse<PriceData>>(`/price/refresh/${metalType}`);
   },
 
   // Legacy methods for backward compatibility
-  getLivePrice: async () => {
-    return priceService.getCurrentPrice();
+  getLivePrice: async (metalType: 'gold' | 'silver' = 'gold') => {
+    return priceService.getCurrentPrice(metalType);
   },
 };
 
@@ -173,8 +180,8 @@ export const kycService = {
 };
 
 export const orderService = {
-  initiateBuy: async (amount: number) => {
-    return api.post('/orders/buy', { amount });
+  initiateBuy: async (amount: number, metalType: 'gold' | 'silver' = 'gold') => {
+    return api.post('/orders/buy', { amount, metalType });
   },
 
   verifyPayment: async (orderId: string) => {
@@ -183,8 +190,8 @@ export const orderService = {
     });
   },
 
-  initiateSell: async (goldGrams: number) => {
-    return api.post('/orders/sell', { goldGrams });
+  initiateSell: async (quantity: number, metalType: 'gold' | 'silver' = 'gold') => {
+    return api.post('/orders/sell', { quantity, metalType });
   },
 
   getOrders: async (limit: number = 50) => {

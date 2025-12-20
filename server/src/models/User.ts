@@ -18,8 +18,8 @@ const userSchema = new Schema<IUserDocument>(
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
     },
     googleId: { type: String, unique: true, sparse: true },
-    phone: { 
-      type: String, 
+    phone: {
+      type: String,
       required: false, // Changed to false for Google Auth users
       unique: true,
       sparse: true, // Allow multiple nulls/undefined
@@ -31,10 +31,11 @@ const userSchema = new Schema<IUserDocument>(
     isBlocked: { type: Boolean, default: false },
     walletBalance: { type: Number, default: 0 },
     goldBalance: { type: Number, default: 0 },
-    kycStatus: { 
-      type: String, 
-      enum: ['none', 'pending', 'verified', 'rejected'], 
-      default: 'none' 
+    silverBalance: { type: Number, default: 0 },
+    kycStatus: {
+      type: String,
+      enum: ['none', 'pending', 'verified', 'rejected'],
+      default: 'none'
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date

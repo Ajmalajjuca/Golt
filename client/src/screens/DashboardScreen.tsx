@@ -22,10 +22,13 @@ import {
   selectSelectedPeriod,
   selectRefreshing,
   selectChartLoading,
+  selectMetalType,
 } from '../store/priceSelectors';
+import { MetalToggle } from '../components/MetalToggle';
 import { PeriodSelector } from '../components/PeriodSelector';
 import { AnimatedNumberSimple } from '../components/AnimatedNumber';
 import { PriceChart } from '../components/PriceChart';
+import { OverlayActionMenu } from '../components/OverlayActionMenu';
 import { walletService } from '../services';
 import { WalletData } from '../types';
 import { PRICE_REFRESH_INTERVAL } from '../constants';
@@ -47,6 +50,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const selectedPeriod = useAppSelector(selectSelectedPeriod);
   const refreshing = useAppSelector(selectRefreshing);
   const chartLoading = useAppSelector(selectChartLoading);
+  const metalType = useAppSelector(selectMetalType);
+  
 
 
   
@@ -66,11 +71,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     return () => clearInterval(priceInterval);
   }, [dispatch]);
 
-  // Load chart data when period changes
+  // Load chart data when period or metal changes
   useEffect(() => {
     dispatch(fetchChartData(selectedPeriod));
     dispatch(fetchStatistics(selectedPeriod));
-  }, [dispatch, selectedPeriod]);
+    dispatch(fetchCurrentPrice());
+  }, [dispatch, selectedPeriod, metalType]);
 
   const loadData = async () => {
     try {
@@ -102,6 +108,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
   const handlePeriodChange = (period: string) => {
     dispatch(setSelectedPeriod(period));
+  };
+  
+  const handleMetalChange = (metal: 'gold' | 'silver') => {
+    // Dispatch action to change metal type
+    // We need to import setMetalType from priceSlice
+    // Note: This will trigger the effect above to reload data
+    import('../store/priceSlice').then(({ setMetalType }) => {
+       dispatch(setMetalType(metal));
+    });
   };
 
   const formatCurrency = (amount: number) => {
@@ -175,6 +190,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             >
               <Ionicons name="notifications-outline" size={24} color={theme.colors.black} />
             </TouchableOpacity>
+          </View>
+          
+          {/* Metal Toggle */}
+          <View style={{ marginBottom: theme.spacing.lg }}>
+            <MetalToggle 
+              selectedMetal={metalType} 
+              onSelect={handleMetalChange} 
+            />
           </View>
 
           {/* Total Balance Card */}
@@ -283,7 +306,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               marginBottom: theme.spacing.md,
             }}>
               <Text style={{ ...theme.typography.h3, color: theme.colors.black }}>
-                Price Chart
+                {metalType === 'gold' ? 'Gold' : 'Silver'} Price Chart
               </Text>
               
               {/* Manual Refresh */}
@@ -408,45 +431,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             </View>
           )}
 
-          {/* Promo Card */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('BuyGold')}
-            activeOpacity={0.9}
-            style={{
-              backgroundColor: theme.colors.primary,
-              borderRadius: theme.borderRadius.xl,
-              padding: theme.spacing.lg,
-              marginBottom: theme.spacing.xxl,
-              ...theme.shadows.lg,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: theme.spacing.md,
-                }}
-              >
-                <Ionicons name="gift" size={28} color={theme.colors.white} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ ...theme.typography.h3, color: theme.colors.white }}>
-                  Start Investing Today
-                </Text>
-                <Text style={{ ...theme.typography.small, color: 'rgba(255,255,255,0.9)', marginTop: 4 }}>
-                  Buy gold starting from just ₹100
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={theme.colors.white} />
-            </View>
-          </TouchableOpacity>
-        </View>
+          </View>
       </ScrollView>
+
     </View>
   );
 };

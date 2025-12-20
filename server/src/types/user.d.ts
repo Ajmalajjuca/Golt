@@ -15,6 +15,7 @@ export interface IUser {
   isBlocked?: boolean;
   walletBalance: number;
   goldBalance: number;
+  silverBalance: number;
   kycStatus: KYCStatus;
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;

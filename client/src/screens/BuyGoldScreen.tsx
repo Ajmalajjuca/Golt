@@ -7,7 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppSelector } from '../store/hooks';
 import { orderService, priceService } from '../services';
 import { theme } from '../theme';
@@ -42,11 +42,13 @@ const formatNumericInput = (text: string) => {
 
 export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const metalType = route.params?.metalType || 'gold';
   const { user } = useAppSelector((state) => state.auth);
   const { showSuccess, showError } = useAlert();
   
   const [amount, setAmount] = useState('');
-  const [goldGrams, setGoldGrams] = useState(0);
+  const [metalQuantity, setMetalQuantity] = useState(0);
   const [buyPrice, setBuyPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   
@@ -65,7 +67,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
         await handlePaymentVerification(orderIdFromCashfree);
       },
       onError: (error: CFErrorResponse, orderIdFromCashfree: string) => {
-        console.error('❌ Payment error:', error);
+        // console.error('❌ Payment error:', error);
         setLoading(false);
         showError('Payment Failed', (error as any)?.message || 'Payment could not be completed.');
       },
@@ -78,13 +80,13 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
 
   useEffect(() => {
     if (!buyPrice || !amount) {
-      setGoldGrams(0);
+      setMetalQuantity(0);
       return;
     }
     
     const cleanedAmount = amount.replace(/[^0-9.]/g, ''); 
     const grams = parseFloat(cleanedAmount) / buyPrice;
-    setGoldGrams(isNaN(grams) || !isFinite(grams) ? 0 : grams);
+    setMetalQuantity(isNaN(grams) || !isFinite(grams) ? 0 : grams);
   }, [amount, buyPrice]);
 
   const handleChangeAmount = (text: string) => {
@@ -93,7 +95,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
 
   const loadPrice = async () => {
     try {
-      const response = await priceService.getCurrentPrice();
+      const response = await priceService.getCurrentPrice(metalType);
       setBuyPrice(response.data.buyPrice);
     } catch (error) {
       showError('Error', 'Failed to load price. Please try again.');
@@ -129,7 +131,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
     setLoading(true);
     try {
       // Step 1: Create order on backend
-      const response = await orderService.initiateBuy(amountNum);
+      const response = await orderService.initiateBuy(amountNum, metalType);
       const { order_id, payment_session_id } = response.data;
       
       setCurrentOrderId(order_id);
@@ -211,7 +213,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
     setAmount('');
-    setGoldGrams(0);
+    setMetalQuantity(0);
     navigation.goBack();
   };
 
@@ -238,7 +240,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
               <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
             </TouchableOpacity>
             <Text style={{ ...theme.typography.h2, color: theme.colors.black }}>
-              Buy Gold
+              Buy {metalType === 'gold' ? 'Gold' : 'Silver'}
             </Text>
           </View>
         </View>
@@ -260,7 +262,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
                 <Text style={{ 
                   fontSize: 36,
                   fontWeight: '700',
-                  color: theme.colors.green,
+                  color: metalType === 'gold' ? theme.colors.green : theme.colors.primary, // Use green for both or distinguish? Theme green is fine from reference.
                   marginBottom: 2
                 }}>
                   {buyPrice > 0 ? `₹${buyPrice.toLocaleString('en-IN')}` : 'Loading...'}
@@ -353,7 +355,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
           </View>
 
           {/* Calculation Summary */}
-          {goldGrams > 0 && (
+          {metalQuantity > 0 && (
             <View style={{
               backgroundColor: theme.colors.primary + '15',
               borderRadius: theme.borderRadius.xl,
@@ -379,7 +381,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
                   fontWeight: '700',
                   color: theme.colors.primary,
                 }}>
-                  {goldGrams.toFixed(4)}g
+                  {metalQuantity.toFixed(4)}g
                 </Text>
               </View>
               
@@ -402,10 +404,10 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ ...theme.typography.body, color: theme.colors.gray600 }}>
-                    Gold quantity
+                    {metalType === 'gold' ? 'Gold' : 'Silver'} quantity
                   </Text>
                   <Text style={{ ...theme.typography.body, fontWeight: '600', color: theme.colors.black }}>
-                    {goldGrams.toFixed(4)}g
+                    {metalQuantity.toFixed(4)}g
                   </Text>
                 </View>
               </View>
@@ -460,9 +462,9 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
                 </Text>
                 <Text style={{ ...theme.typography.small, color: '#3B82F6', lineHeight: 20 }}>
                   1. Enter the amount you want to invest{'\n'}
-                  2. Review the gold quantity you'll receive{'\n'}
+                  2. Review the {metalType} quantity you'll receive{'\n'}
                   3. Select your UPI app to complete payment{'\n'}
-                  4. Gold will be added to your wallet instantly
+                  4. {metalType === 'gold' ? 'Gold' : 'Silver'} will be added to your wallet instantly
                 </Text>
               </View>
             </View>
@@ -474,7 +476,7 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
       <ModalAlert
         type="warning"
         title="KYC Verification Required"
-        message="You need to complete KYC verification before purchasing gold. Would you like to proceed to the KYC section now?"
+        message={`You need to complete KYC verification before purchasing ${metalType}. Would you like to proceed to the KYC section now?`}
         visible={showKYCModal}
         onClose={() => setShowKYCModal(false)}
         primaryButton={{
@@ -494,9 +496,9 @@ export const BuyGoldScreen: React.FC<BuyGoldScreenProps> = () => {
       <ModalAlert
         type="success"
         title="Purchase Successful! 🎉"
-        message={`You have successfully purchased ${goldGrams.toFixed(4)}g of gold for ₹${parseFloat(amount || '0').toLocaleString('en-IN')}.
+        message={`You have successfully purchased ${metalQuantity.toFixed(4)}g of ${metalType} for ₹${parseFloat(amount || '0').toLocaleString('en-IN')}.
 
-The gold has been added to your portfolio.`}
+The ${metalType} has been added to your portfolio.`}
         visible={showSuccessModal}
         onClose={handleSuccessClose}
         primaryButton={{
@@ -511,7 +513,7 @@ The gold has been added to your portfolio.`}
           onPress: () => {
             setShowSuccessModal(false);
             setAmount('');
-            setGoldGrams(0);
+            setMetalQuantity(0);
           },
         }}
       />

@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { priceService } from '../services';
-import { 
-  PriceData, 
-  PriceHistoryData, 
-  ChartData, 
-  PriceComparisonData 
+import {
+  PriceData,
+  PriceHistoryData,
+  ChartData,
+  PriceComparisonData
 } from '../services';
 
 // Enhanced Price State
@@ -12,28 +12,29 @@ export interface PriceState {
   // Current price
   current: PriceData | null;
   currentLoading: boolean;
-  
+
   // Price history
   history: PriceHistoryData | null;
   historyLoading: boolean;
-  
+
   // Chart data
   chartData: ChartData | null;
   chartLoading: boolean;
   selectedPeriod: string;
-  
+  metalType: 'gold' | 'silver';
+
   // Statistics
   statistics: PriceHistoryData['statistics'] | null;
   statisticsLoading: boolean;
-  
+
   // Price comparison
   comparison: PriceComparisonData | null;
   comparisonLoading: boolean;
-  
+
   // Refresh state
   refreshing: boolean;
   lastRefreshTime: string | null;
-  
+
   // Error handling
   error: string | null;
 }
@@ -41,23 +42,24 @@ export interface PriceState {
 const initialState: PriceState = {
   current: null,
   currentLoading: false,
-  
+
   history: null,
   historyLoading: false,
-  
+
   chartData: null,
   chartLoading: false,
   selectedPeriod: '1D',
-  
+  metalType: 'gold',
+
   statistics: null,
   statisticsLoading: false,
-  
+
   comparison: null,
   comparisonLoading: false,
-  
+
   refreshing: false,
   lastRefreshTime: null,
-  
+
   error: null,
 };
 
@@ -66,11 +68,13 @@ const initialState: PriceState = {
 /**
  * Fetch current/live price
  */
-export const fetchCurrentPrice = createAsyncThunk(
+export const fetchCurrentPrice = createAsyncThunk<PriceData>(
   'price/fetchCurrent',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await priceService.getCurrentPrice();
+      const state = getState() as any;
+      const metalType = state.price.metalType;
+      const response = await priceService.getCurrentPrice(metalType);
       if (response.success) {
         return response.data;
       }
@@ -84,15 +88,17 @@ export const fetchCurrentPrice = createAsyncThunk(
 /**
  * Fetch price history with flexible parameters
  */
-export const fetchPriceHistory = createAsyncThunk(
+export const fetchPriceHistory = createAsyncThunk<PriceHistoryData, { period?: string; interval?: string; limit?: number }>(
   'price/fetchHistory',
   async (
     params: { period?: string; interval?: string; limit?: number } = {},
-    { rejectWithValue }
+    { rejectWithValue, getState }
   ) => {
     try {
+      const state = getState() as any;
+      const metalType = state.price.metalType;
       const { period = '1D', interval, limit } = params;
-      const response = await priceService.getPriceHistory(period, interval, limit);
+      const response = await priceService.getPriceHistory(period, metalType, interval, limit);
       if (response.success) {
         return response.data;
       }
@@ -106,11 +112,13 @@ export const fetchPriceHistory = createAsyncThunk(
 /**
  * Fetch optimized chart data
  */
-export const fetchChartData = createAsyncThunk(
+export const fetchChartData = createAsyncThunk<ChartData, string>(
   'price/fetchChart',
-  async (period: string = '1D', { rejectWithValue }) => {
+  async (period: string = '1D', { rejectWithValue, getState }) => {
     try {
-      const response = await priceService.getChartData(period);
+      const state = getState() as any;
+      const metalType = state.price.metalType;
+      const response = await priceService.getChartData(period, metalType);
       if (response.success) {
         return response.data;
       }
@@ -124,11 +132,13 @@ export const fetchChartData = createAsyncThunk(
 /**
  * Fetch price statistics
  */
-export const fetchStatistics = createAsyncThunk(
+export const fetchStatistics = createAsyncThunk<PriceHistoryData['statistics'] & { period: string; dataPoints: number }, string>(
   'price/fetchStatistics',
-  async (period: string = '1D', { rejectWithValue }) => {
+  async (period: string = '1D', { rejectWithValue, getState }) => {
     try {
-      const response = await priceService.getStatistics(period);
+      const state = getState() as any;
+      const metalType = state.price.metalType;
+      const response = await priceService.getStatistics(period, metalType);
       if (response.success) {
         return response.data;
       }
@@ -142,11 +152,13 @@ export const fetchStatistics = createAsyncThunk(
 /**
  * Fetch price comparison across periods
  */
-export const fetchPriceComparison = createAsyncThunk(
+export const fetchPriceComparison = createAsyncThunk<PriceComparisonData>(
   'price/fetchComparison',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await priceService.comparePrices();
+      const state = getState() as any;
+      const metalType = state.price.metalType;
+      const response = await priceService.comparePrices(metalType);
       if (response.success) {
         return response.data;
       }
@@ -160,11 +172,13 @@ export const fetchPriceComparison = createAsyncThunk(
 /**
  * Force refresh price from API
  */
-export const refreshPrice = createAsyncThunk(
+export const refreshPrice = createAsyncThunk<PriceData>(
   'price/refresh',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await priceService.refreshPrice();
+      const state = getState() as any;
+      const metalType = state.price.metalType;
+      const response = await priceService.refreshPrice(metalType);
       if (response.success) {
         return response.data;
       }
@@ -178,7 +192,7 @@ export const refreshPrice = createAsyncThunk(
 /**
  * Legacy thunk for backward compatibility
  */
-export const fetchLivePrice = createAsyncThunk(
+export const fetchLivePrice = createAsyncThunk<PriceData>(
   'price/fetchLive',
   async (_, { rejectWithValue }) => {
     try {
@@ -201,15 +215,19 @@ const priceSlice = createSlice({
     clearPriceError: (state) => {
       state.error = null;
     },
-    
+
     setSelectedPeriod: (state, action) => {
       state.selectedPeriod = action.payload;
     },
-    
+
+    setMetalType: (state, action) => {
+      state.metalType = action.payload;
+    },
+
     resetPriceState: (state) => {
       return initialState;
     },
-    
+
     updateCurrentPrice: (state, action) => {
       state.current = action.payload;
     },
@@ -324,11 +342,12 @@ const priceSlice = createSlice({
   },
 });
 
-export const { 
-  clearPriceError, 
-  setSelectedPeriod, 
+export const {
+  clearPriceError,
+  setSelectedPeriod,
+  setMetalType,
   resetPriceState,
-  updateCurrentPrice 
+  updateCurrentPrice
 } = priceSlice.actions;
 
 export default priceSlice.reducer;

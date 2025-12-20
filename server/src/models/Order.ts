@@ -1,13 +1,16 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export type OrderType = 'buy' | 'sell';
+export type MetalType = 'gold' | 'silver';
 export type OrderStatus = 'pending' | 'payment_pending' | 'completed' | 'failed' | 'cancelled';
 
 export interface IOrder extends Document {
   user: Types.ObjectId;
   type: OrderType;
+  metalType: MetalType;
   amountInr: number;
-  goldGrams: number;
+  quantity: number; // in grams
+  goldGrams?: number; // Deprecated, kept for backward compatibility
   pricePerGram: number;
   status: OrderStatus;
   cashfreeOrderId?: string;
@@ -21,8 +24,10 @@ export interface IOrder extends Document {
 const orderSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   type: { type: String, enum: ['buy', 'sell'], required: true },
+  metalType: { type: String, enum: ['gold', 'silver'], default: 'gold' },
   amountInr: { type: Number, required: true },
-  goldGrams: { type: Number, required: true },
+  quantity: { type: Number, required: true },
+  goldGrams: { type: Number }, // Optional/Deprecated
   pricePerGram: { type: Number, required: true },
   status: {
     type: String,

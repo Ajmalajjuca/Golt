@@ -32,6 +32,9 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
     }
   };
 
+  console.log('transaction:',transactions);
+  
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTransactions();
@@ -43,7 +46,7 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
   };
 
   const getTransactionAmount = (transaction: Transaction) => {
-    const isNegative = transaction.type === 'buy_gold' || transaction.type === 'withdrawal';
+    const isNegative = ['buy_gold', 'buy_silver', 'withdrawal'].includes(transaction.type);
     return `${isNegative ? '-' : '+'}${formatCurrency(transaction.amount)}`;
   };
 
@@ -68,8 +71,8 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
 
   const getFilteredTransactions = () => {
     if (filter === 'all') return transactions;
-    if (filter === 'buy') return transactions.filter(t => t.type === 'buy_gold');
-    if (filter === 'sell') return transactions.filter(t => t.type === 'sell_gold');
+    if (filter === 'buy') return transactions.filter(t => t.type === 'buy_gold' || t.type === 'buy_silver');
+    if (filter === 'sell') return transactions.filter(t => t.type === 'sell_gold' || t.type === 'sell_silver');
     return transactions;
   };
 
@@ -146,13 +149,13 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
               label="Buy"
               isActive={filter === 'buy'}
               onPress={() => setFilter('buy')}
-              count={transactions.filter(t => t.type === 'buy_gold').length}
+              count={transactions.filter(t => t.type === 'buy_gold' || t.type === 'buy_silver').length}
             />
             <FilterTab
               label="Sell"
               isActive={filter === 'sell'}
               onPress={() => setFilter('sell')}
-              count={transactions.filter(t => t.type === 'sell_gold').length}
+              count={transactions.filter(t => t.type === 'sell_gold' || t.type === 'sell_silver').length}
             />
           </View>
         )}
@@ -230,7 +233,7 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
                     <View key={transaction._id}>
                       <TransactionItem
                         type={transaction.type as any}
-                        amount={`${((transaction as any).goldAmount || 0).toFixed(4)}g`}
+                        amount={`${((transaction as any).quantity || (transaction as any).goldAmount || 0).toFixed(4)}g`}
                         date={new Date(transaction.createdAt).toLocaleTimeString('en-IN', {
                           hour: '2-digit',
                           minute: '2-digit',

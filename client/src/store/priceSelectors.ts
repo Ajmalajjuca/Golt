@@ -12,6 +12,7 @@ export const selectHistoryLoading = (state: RootState) => state.price.historyLoa
 export const selectChartData = (state: RootState) => state.price.chartData;
 export const selectChartLoading = (state: RootState) => state.price.chartLoading;
 export const selectSelectedPeriod = (state: RootState) => state.price.selectedPeriod;
+export const selectMetalType = (state: RootState) => state.price.metalType;
 
 // Statistics selectors
 export const selectStatistics = (state: RootState) => state.price.statistics;

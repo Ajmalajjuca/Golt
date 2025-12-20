@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 
 interface TransactionItemProps {
-  type: 'buy' | 'sell' | 'buy_gold' | 'sell_gold' | 'deposit' | 'withdrawal';
+  type: 'buy' | 'sell' | 'buy_gold' | 'sell_gold' | 'buy_silver' | 'sell_silver' | 'deposit' | 'withdrawal';
   amount: string;
   date: string;
   value: string;
@@ -24,9 +24,11 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     switch (type) {
       case 'buy':
       case 'buy_gold':
+      case 'buy_silver':
         return { name: 'arrow-down-circle' as const, color: theme.colors.green };
       case 'sell':
       case 'sell_gold':
+      case 'sell_silver':
         return { name: 'arrow-up-circle' as const, color: theme.colors.red };
       case 'deposit':
         return { name: 'add-circle' as const, color: '#3B82F6' };
@@ -42,9 +44,13 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
       case 'buy':
       case 'buy_gold':
         return 'Buy Gold';
+      case 'buy_silver':
+        return 'Buy Silver';
       case 'sell':
       case 'sell_gold':
         return 'Sell Gold';
+      case 'sell_silver':
+        return 'Sell Silver';
       case 'deposit':
         return 'Deposit';
       case 'withdrawal':

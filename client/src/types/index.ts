@@ -53,7 +53,7 @@ export interface Transaction {
   _id: string;
   user: string;
   amount: number;
-  type: 'deposit' | 'withdrawal' | 'buy_gold' | 'sell_gold' | 'refund';
+  type: 'deposit' | 'withdrawal' | 'buy_gold' | 'sell_gold' | 'buy_silver' | 'sell_silver' | 'refund';
   status: 'pending' | 'success' | 'failed';
   referenceId?: string;
   description?: string;
@@ -63,8 +63,11 @@ export interface Transaction {
 export interface WalletData {
   walletBalance: number;
   goldBalance: number;
+  goldValue: number;
+  silverBalance: number;
+  silverValue: number;
   totalInvested: number;
-  avgBuyPrice: number;
+  avgBuyPrice?: number;
   currentValue: number;
   profitLoss: number;
   profitLossPercentage: number;

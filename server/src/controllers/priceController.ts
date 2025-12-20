@@ -2,48 +2,38 @@ import { Request, Response } from 'express';
 import Price, { IPrice } from '../models/Price.js';
 import { PriceService } from '../services/priceService.js';
 
-const priceService = new PriceService();
-
 export class PriceController {
   /**
-   * @desc Get current gold price
-   * @route GET /api/prices/current
+   * Get or initialize price service for metal type
+   */
+  private async getPriceService(metalType: string): Promise<PriceService> {
+    if (metalType !== 'gold' && metalType !== 'silver') {
+      throw new Error(`Invalid metal type: ${metalType}`);
+    }
+    return PriceService.getInstance(metalType as 'gold' | 'silver');
+  }
+
+  /**
+   * @desc Get current price for specified metal
+   * @route GET /api/prices/current/:metalType
    * @access Public
    */
   async getCurrentPrice(req: Request, res: Response) {
     try {
-      const currentPrice = priceService.getCurrentPriceInMemory();
-      
-      if (!currentPrice) {
-        // If not in memory, fetch from DB
-        const latestPrice = await priceService.getLatestPrice();
-        if (!latestPrice) {
-          return res.status(404).json({
-            success: false,
-            message: 'No price data available',
-          });
-        }
+      const { metalType = 'gold' } = req.params;
 
-        return res.status(200).json({
-          success: true,
-          data: {
-            buyPrice: latestPrice.buyPrice,
-            sellPrice: latestPrice.sellPrice,
-            timestamp: latestPrice.timestamp,
-            currency: latestPrice.currency || 'INR',
-          },
-        });
-      }
+      const priceService = await this.getPriceService(metalType);
+      const effectivePrice = await priceService.getEffectivePrice();
 
-      // Return in-memory price with latest timestamp
-      const latestPrice = await priceService.getLatestPrice();
       return res.status(200).json({
         success: true,
         data: {
-          buyPrice: currentPrice.buy,
-          sellPrice: currentPrice.sell,
-          timestamp: latestPrice?.timestamp || new Date(),
-          currency: 'INR',
+          metalType: effectivePrice.metalType,
+          buyPrice: effectivePrice.buyPrice,
+          sellPrice: effectivePrice.sellPrice,
+          timestamp: effectivePrice.timestamp,
+          currency: effectivePrice.currency,
+          source: effectivePrice.source // Debug info
         },
       });
     } catch (error: any) {
@@ -58,7 +48,7 @@ export class PriceController {
 
   /**
    * @desc Get price history with various time periods
-   * @route GET /api/prices/history
+   * @route GET /api/prices/history/:metalType
    * @query period: 1H, 1D, 1W, 1M, 3M, 6M, 1Y, ALL
    * @query limit: number of records to return
    * @query interval: grouping interval (1m, 5m, 15m, 1h, 1d)
@@ -67,12 +57,22 @@ export class PriceController {
   async getPriceHistory(req: Request, res: Response) {
     try {
       const { period = '1D', limit, interval = 'auto' } = req.query;
+      const { metalType = 'gold' } = req.params;
+
+      // Validate metal type
+      if (!['gold', 'silver'].includes(metalType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid metal type. Must be "gold" or "silver"',
+        });
+      }
 
       // Calculate time range based on period
       const timeRange = this.calculateTimeRange(period as string);
-      
-      // Build query
+
+      // Build query with metalType filter
       const query: any = {
+        metalType: metalType,
         timestamp: { $gte: timeRange.start },
       };
 
@@ -81,13 +81,13 @@ export class PriceController {
       }
 
       // Determine optimal interval if 'auto'
-      const samplingInterval = interval === 'auto' 
+      const samplingInterval = interval === 'auto'
         ? this.determineOptimalInterval(period as string)
         : interval;
 
       // Fetch prices with appropriate sampling
       let prices: IPrice[];
-      
+
       if (samplingInterval === 'none') {
         // Return all data points
         prices = await Price.find(query)
@@ -104,6 +104,7 @@ export class PriceController {
       return res.status(200).json({
         success: true,
         data: {
+          metalType: metalType,
           prices: prices.map(p => ({
             buyPrice: p.buyPrice,
             sellPrice: p.sellPrice,
@@ -128,16 +129,26 @@ export class PriceController {
 
   /**
    * @desc Get price history for chart with optimized data points
-   * @route GET /api/prices/chart
+   * @route GET /api/prices/chart/:metalType
    * @query period: 1H, 1D, 1W, 1M, 3M, 6M, 1Y, ALL
    * @access Public
    */
   async getChartData(req: Request, res: Response) {
     try {
       const { period = '1D' } = req.query;
+      const { metalType = 'gold' } = req.params;
+
+      // Validate metal type
+      if (!['gold', 'silver'].includes(metalType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid metal type. Must be "gold" or "silver"',
+        });
+      }
 
       const timeRange = this.calculateTimeRange(period as string);
       const query: any = {
+        metalType: metalType,
         timestamp: { $gte: timeRange.start },
       };
 
@@ -146,7 +157,14 @@ export class PriceController {
 
       // Get total count
       const totalCount = await Price.countDocuments(query);
-      
+
+      if (totalCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: `No ${metalType} price data available for the specified period`,
+        });
+      }
+
       // Calculate skip interval
       const skipInterval = Math.max(1, Math.floor(totalCount / targetPoints));
 
@@ -171,6 +189,7 @@ export class PriceController {
       return res.status(200).json({
         success: true,
         data: {
+          metalType: metalType,
           prices: sampledPrices.map(p => ({
             buyPrice: p.buyPrice,
             sellPrice: p.sellPrice,
@@ -199,17 +218,29 @@ export class PriceController {
 
   /**
    * @desc Force refresh price from live API
-   * @route POST /api/prices/refresh
+   * @route POST /api/prices/refresh/:metalType
    * @access Public
    */
   async refreshPrice(req: Request, res: Response) {
     try {
+      const { metalType = 'gold' } = req.params;
+
+      // Validate metal type
+      if (!['gold', 'silver'].includes(metalType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid metal type. Must be "gold" or "silver"',
+        });
+      }
+
+      const priceService = await this.getPriceService(metalType);
       const updatedPrice = await priceService.forceRefresh();
 
       return res.status(200).json({
         success: true,
-        message: 'Price refreshed successfully',
+        message: `${metalType.charAt(0).toUpperCase() + metalType.slice(1)} price refreshed successfully`,
         data: {
+          metalType: updatedPrice.metalType,
           buyPrice: updatedPrice.buyPrice,
           sellPrice: updatedPrice.sellPrice,
           timestamp: updatedPrice.timestamp,
@@ -228,16 +259,26 @@ export class PriceController {
 
   /**
    * @desc Get price statistics for a time period
-   * @route GET /api/prices/statistics
+   * @route GET /api/prices/statistics/:metalType
    * @query period: 1D, 1W, 1M, 3M, 6M, 1Y, ALL
    * @access Public
    */
   async getPriceStatistics(req: Request, res: Response) {
     try {
       const { period = '1D' } = req.query;
+      const { metalType = 'gold' } = req.params;
+
+      // Validate metal type
+      if (!['gold', 'silver'].includes(metalType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid metal type. Must be "gold" or "silver"',
+        });
+      }
 
       const timeRange = this.calculateTimeRange(period as string);
       const query: any = {
+        metalType: metalType,
         timestamp: { $gte: timeRange.start },
       };
 
@@ -246,7 +287,7 @@ export class PriceController {
       if (prices.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'No price data available for the specified period',
+          message: `No ${metalType} price data available for the specified period`,
         });
       }
 
@@ -255,6 +296,7 @@ export class PriceController {
       return res.status(200).json({
         success: true,
         data: {
+          metalType: metalType,
           ...statistics,
           period: period,
           dataPoints: prices.length,
@@ -272,31 +314,44 @@ export class PriceController {
 
   /**
    * @desc Get price comparison between different time periods
-   * @route GET /api/prices/compare
+   * @route GET /api/prices/compare/:metalType
    * @access Public
    */
   async comparePrices(req: Request, res: Response) {
     try {
-      const currentPrice = await priceService.getLatestPrice();
-      if (!currentPrice) {
-        return res.status(404).json({
+      const { metalType = 'gold' } = req.params;
+
+      // Validate metal type
+      if (!['gold', 'silver'].includes(metalType)) {
+        return res.status(400).json({
           success: false,
-          message: 'No current price available',
+          message: 'Invalid metal type. Must be "gold" or "silver"',
         });
       }
 
-      // Get prices at different time points
+      const priceService = await this.getPriceService(metalType);
+      const currentPrice = await priceService.getLatestPrice();
+
+      if (!currentPrice) {
+        return res.status(404).json({
+          success: false,
+          message: `No current ${metalType} price available`,
+        });
+      }
+
+      // Get prices at different time points for this metal
       const comparisons = await Promise.all([
-        this.getPriceAtTime('1H'),
-        this.getPriceAtTime('1D'),
-        this.getPriceAtTime('1W'),
-        this.getPriceAtTime('1M'),
-        this.getPriceAtTime('3M'),
-        this.getPriceAtTime('6M'),
-        this.getPriceAtTime('1Y'),
+        this.getPriceAtTime('1H', metalType),
+        this.getPriceAtTime('1D', metalType),
+        this.getPriceAtTime('1W', metalType),
+        this.getPriceAtTime('1M', metalType),
+        this.getPriceAtTime('3M', metalType),
+        this.getPriceAtTime('6M', metalType),
+        this.getPriceAtTime('1Y', metalType),
       ]);
 
       const result = {
+        metalType: metalType,
         current: {
           buyPrice: currentPrice.buyPrice,
           sellPrice: currentPrice.sellPrice,
@@ -357,6 +412,50 @@ export class PriceController {
       return res.status(500).json({
         success: false,
         message: 'Failed to compare prices',
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * @desc Get both gold and silver current prices
+   * @route GET /api/prices/all
+   * @access Public
+   */
+  async getAllCurrentPrices(req: Request, res: Response) {
+    try {
+      const goldService = await this.getPriceService('gold');
+      const silverService = await this.getPriceService('silver');
+
+      const [goldPrice, silverPrice] = await Promise.all([
+        goldService.getLatestPrice(),
+        silverService.getLatestPrice(),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          gold: goldPrice ? {
+            metalType: 'gold',
+            buyPrice: goldPrice.buyPrice,
+            sellPrice: goldPrice.sellPrice,
+            timestamp: goldPrice.timestamp,
+            currency: goldPrice.currency || 'INR',
+          } : null,
+          silver: silverPrice ? {
+            metalType: 'silver',
+            buyPrice: silverPrice.buyPrice,
+            sellPrice: silverPrice.sellPrice,
+            timestamp: silverPrice.timestamp,
+            currency: silverPrice.currency || 'INR',
+          } : null,
+        },
+      });
+    } catch (error: any) {
+      console.error('Error fetching all prices:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch prices',
         error: error.message,
       });
     }
@@ -450,7 +549,7 @@ export class PriceController {
 
     for (const price of allPrices) {
       const currentTimestamp = new Date(price.timestamp).getTime();
-      
+
       if (currentTimestamp - lastTimestamp >= intervalMs) {
         sampledPrices.push(price);
         lastTimestamp = currentTimestamp;
@@ -524,12 +623,13 @@ export class PriceController {
   }
 
   /**
-   * Get price at a specific time in the past
+   * Get price at a specific time in the past for specified metal
    */
-  private async getPriceAtTime(periodAgo: string): Promise<IPrice | null> {
+  private async getPriceAtTime(periodAgo: string, metalType: string): Promise<IPrice | null> {
     const timeRange = this.calculateTimeRange(periodAgo);
-    
+
     return await Price.findOne({
+      metalType: metalType,
       timestamp: { $lte: timeRange.start },
     }).sort({ timestamp: -1 });
   }

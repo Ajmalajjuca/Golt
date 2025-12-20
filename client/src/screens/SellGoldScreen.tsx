@@ -7,7 +7,8 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppSelector } from '../store/hooks';
 import { orderService, priceService, walletService } from '../services';
 import { WalletData } from '../types';
@@ -30,8 +31,10 @@ const formatNumericInput = (text: string) => {
 
 export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const metalType = route.params?.metalType || 'gold';
   const { user } = useAppSelector((state) => state.auth);
-  const [goldGrams, setGoldGrams] = useState('');
+  const [metalQuantity, setMetalQuantity] = useState('');
   const [amountToReceive, setAmountToReceive] = useState(0);
   const [sellPrice, setSellPrice] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -44,23 +47,23 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   }, []);
 
   useEffect(() => {
-    if (goldGrams && sellPrice) {
-      const cleanedGrams = goldGrams.replace(/[^0-9.]/g, '');
-      const amount = parseFloat(cleanedGrams) * sellPrice;
+    if (metalQuantity && sellPrice) {
+      const cleanedQuantity = metalQuantity.replace(/[^0-9.]/g, '');
+      const amount = parseFloat(cleanedQuantity) * sellPrice;
       setAmountToReceive(isNaN(amount) ? 0 : amount);
     } else {
       setAmountToReceive(0);
     }
-  }, [goldGrams, sellPrice]);
+  }, [metalQuantity, sellPrice]);
 
-  const handleChangeGoldGrams = (text: string) => {
-    setGoldGrams(formatNumericInput(text));
+  const handleChangeQuantity = (text: string) => {
+    setMetalQuantity(formatNumericInput(text));
   };
 
   const loadData = async () => {
     try {
       const [priceResponse, walletResponse] = await Promise.all([
-        priceService.getCurrentPrice(),
+        priceService.getCurrentPrice(metalType),
         walletService.getWallet(),
       ]);
       setSellPrice(priceResponse.data.sellPrice);
@@ -71,17 +74,19 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   };
 
   const handleSell = () => {
-    const cleanedGrams = goldGrams.replace(/[^0-9.]/g, '');
-    const gramsNum = parseFloat(cleanedGrams);
+    const cleanedQuantity = metalQuantity.replace(/[^0-9.]/g, '');
+    const quantityNum = parseFloat(cleanedQuantity);
     
     // Validation checks BEFORE showing confirmation
-    if (!gramsNum || gramsNum <= 0) {
-      showError('Invalid Amount', 'Please enter a valid gold quantity');
+    if (!quantityNum || quantityNum <= 0) {
+      showError('Invalid Amount', `Please enter a valid ${metalType} quantity`);
       return;
     }
 
-    if (!walletData || gramsNum > walletData.goldBalance) {
-      showError('Insufficient Balance', 'You do not have enough gold to sell');
+    const balance = metalType === 'gold' ? walletData?.goldBalance : walletData?.silverBalance;
+
+    if (!walletData || quantityNum > (balance || 0)) {
+      showError('Insufficient Balance', `You do not have enough ${metalType} to sell`);
       return;
     }
 
@@ -90,20 +95,20 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
   };
 
   const confirmSell = async () => {
-    const cleanedGrams = goldGrams.replace(/[^0-9.]/g, '');
-    const gramsNum = parseFloat(cleanedGrams);
+    const cleanedQuantity = metalQuantity.replace(/[^0-9.]/g, '');
+    const quantityNum = parseFloat(cleanedQuantity);
 
     setLoading(true);
     setShowConfirm(false); // Close modal first
     
     try {
-      await orderService.initiateSell(gramsNum);
+      await orderService.initiateSell(quantityNum, metalType);
       
       // Show success alert
       showAlert({
         type: 'success',
         title: 'Sale Successful! 🎉',
-        message: `You have successfully sold ${gramsNum.toFixed(4)}g of gold for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
+        message: `You have successfully sold ${quantityNum.toFixed(4)}g of ${metalType} for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
         duration: 0, // Don't auto-dismiss
         action: {
           label: 'View Wallet',
@@ -114,7 +119,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
       });
 
       // Reset form
-      setGoldGrams('');
+      setMetalQuantity('');
       setAmountToReceive(0);
       
       // Reload wallet data
@@ -131,8 +136,9 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
 
   const setPercentage = (percentage: number) => {
     if (walletData) {
-      const grams = (walletData.goldBalance * percentage) / 100;
-      setGoldGrams(grams.toFixed(4));
+      const balance = metalType === 'gold' ? walletData.goldBalance : walletData.silverBalance;
+      const quantity = (balance * percentage) / 100;
+      setMetalQuantity(quantity.toFixed(4));
     }
   };
 
@@ -157,7 +163,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
             </TouchableOpacity>
             <Text style={{ ...theme.typography.h2, color: theme.colors.black }}>
-              Sell Gold
+              Sell {metalType === 'gold' ? 'Gold' : 'Silver'}
             </Text>
           </View>
         </View>
@@ -220,17 +226,17 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               color: theme.colors.primary,
               marginBottom: theme.spacing.xs
             }}>
-              {walletData ? `${walletData.goldBalance.toFixed(4)}g` : '0g'}
+              {walletData ? `${(metalType === 'gold' ? walletData.goldBalance : walletData.silverBalance).toFixed(4)}g` : '0g'}
             </Text>
             <Text style={{ ...theme.typography.small, color: theme.colors.gray500 }}>
-              Worth ₹{walletData ? (walletData.goldBalance * sellPrice).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '0'}
+              Worth ₹{walletData ? ((metalType === 'gold' ? walletData.goldBalance : walletData.silverBalance) * sellPrice).toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '0'}
             </Text>
           </View>
 
           {/* Gold Input Field */}
           <View style={{ marginBottom: theme.spacing.lg }}>
             <Text style={{ ...theme.typography.bodyBold, color: theme.colors.black, marginBottom: theme.spacing.md }}>
-              Enter Gold Quantity (grams)
+              Enter {metalType === 'gold' ? 'Gold' : 'Silver'} Quantity (grams)
             </Text>
             <View style={{
               backgroundColor: theme.colors.white,
@@ -244,8 +250,8 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               ...theme.shadows.sm,
             }}>
               <TextInput
-                value={goldGrams}
-                onChangeText={handleChangeGoldGrams}
+                value={metalQuantity}
+                onChangeText={handleChangeQuantity}
                 placeholder="0.0000"
                 keyboardType="numeric"
                 style={{ 
@@ -327,10 +333,10 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               <View style={{ gap: theme.spacing.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ ...theme.typography.body, color: theme.colors.gray600 }}>
-                    Gold quantity
+                    {metalType === 'gold' ? 'Gold' : 'Silver'} quantity
                   </Text>
                   <Text style={{ ...theme.typography.body, fontWeight: '600', color: theme.colors.black }}>
-                    {goldGrams}g
+                    {metalQuantity}g
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -356,7 +362,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
           {/* Sell Button */}
           <TouchableOpacity
             onPress={handleSell}
-            disabled={loading || !goldGrams || parseFloat(goldGrams.replace(/[^0-9.]/g, '')) <= 0}
+            disabled={loading || !metalQuantity || parseFloat(metalQuantity.replace(/[^0-9.]/g, '')) <= 0}
             style={{
               backgroundColor: theme.colors.red,
               borderRadius: theme.borderRadius.xl,
@@ -365,7 +371,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               justifyContent: 'center',
               marginBottom: theme.spacing.lg,
               ...theme.shadows.lg,
-              opacity: (loading || !goldGrams || parseFloat(goldGrams.replace(/[^0-9.]/g, '')) <= 0) ? 0.5 : 1,
+              opacity: (loading || !metalQuantity || parseFloat(metalQuantity.replace(/[^0-9.]/g, '')) <= 0) ? 0.5 : 1,
             }}
             activeOpacity={0.8}
           >
@@ -375,7 +381,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
               </Text>
             ) : (
               <Text style={{ ...theme.typography.bodyBold, color: theme.colors.white, fontSize: 17 }}>
-                Sell {goldGrams || '0'}g Gold
+                Sell {metalQuantity || '0'}g {metalType === 'gold' ? 'Gold' : 'Silver'}
               </Text>
             )}
           </TouchableOpacity>
@@ -400,7 +406,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
                   How it works
                 </Text>
                 <Text style={{ ...theme.typography.small, color: '#3B82F6', lineHeight: 20 }}>
-                  1. Enter the gold quantity you want to sell{'\n'}
+                  1. Enter the {metalType} quantity you want to sell{'\n'}
                   2. Review the amount you'll receive{'\n'}
                   3. Confirm the sale{'\n'}
                   4. Money will be added to your wallet instantly
@@ -415,7 +421,7 @@ export const SellGoldScreen: React.FC<SellGoldScreenProps> = () => {
       <ModalAlert
         type="warning"
         title="Confirm Sale"
-        message={`Are you sure you want to sell ${goldGrams}g of gold for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}?`}
+        message={`Are you sure you want to sell ${metalQuantity}g of ${metalType} for ₹${amountToReceive.toLocaleString('en-IN', { maximumFractionDigits: 2 })}?`}
         visible={showConfirm}
         onClose={() => setShowConfirm(false)}
         primaryButton={{

@@ -16,6 +16,7 @@ interface OverlayActionMenuProps {
   onBuyPress: () => void;
   onSellPress: () => void;
   showCloseButton?: boolean;
+  metalType: 'gold' | 'silver';
 }
 
 export const OverlayActionMenu: React.FC<OverlayActionMenuProps> = ({
@@ -24,6 +25,7 @@ export const OverlayActionMenu: React.FC<OverlayActionMenuProps> = ({
   onBuyPress,
   onSellPress,
   showCloseButton = true,
+  metalType = 'gold',
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim1 = useRef(new Animated.Value(0)).current;
@@ -34,6 +36,7 @@ export const OverlayActionMenu: React.FC<OverlayActionMenuProps> = ({
   const opacityAnim2 = useRef(new Animated.Value(0)).current;
   const closeButtonRotate = useRef(new Animated.Value(0)).current;
   const closeButtonScale = useRef(new Animated.Value(0)).current;
+
 
   useEffect(() => {
     if (visible) {
@@ -174,17 +177,17 @@ export const OverlayActionMenu: React.FC<OverlayActionMenuProps> = ({
     inputRange: [0, 1],
     outputRange: ['0deg', '135deg'],
   });
-
+  console.log('metalType', metalType);
   const actions: ActionItem[] = [
     {
       icon: 'arrow-up',
-      label: 'Sell Gold',
+      label: `Sell ${metalType === 'gold' ? 'Gold' : 'Silver'}`,
       color: theme.colors.red,
       onPress: onSellPress,
     },
     {
       icon: 'arrow-down',
-      label: 'Buy Gold',
+      label: `Buy ${metalType === 'gold' ? 'Gold' : 'Silver'}`,
       color: theme.colors.green,
       onPress: onBuyPress,
     },

@@ -10,7 +10,7 @@ A complete digital gold buying and selling application built with **React Native
 - ✅ **Authentication** - Register, Login with JWT
 - ✅ **Live Gold Prices** - Real-time buy/sell prices with auto-refresh (20s)
 - ✅ **KYC Verification** - PAN + Aadhaar submission with mock verification
-- ✅ **Buy Gold** - Purchase gold with Razorpay integration (mocked)
+- ✅ **Buy Gold** - Purchase gold with Cashfree integration (mocked)
 - ✅ **Sell Gold** - Sell gold instantly
 - ✅ **Digital Wallet** - Track cash and gold balance
 - ✅ **Portfolio** - View total wealth, P&L, average buy price
@@ -19,7 +19,7 @@ A complete digital gold buying and selling application built with **React Native
 
 ### Technical Features
 - 🔐 JWT Authentication
-- 💳 Razorpay Payment Integration (Mock)
+- 💳 CashFree Payment Integration (Mock)
 - 📊 Real-time price updates
 - 🎨 Modern UI with Tailwind CSS (NativeWind)
 - 🔄 Redux Toolkit for state management
@@ -45,7 +45,7 @@ A complete digital gold buying and selling application built with **React Native
 - **Database**: MongoDB with Mongoose
 - **Authentication**: JWT
 - **Validation**: Built-in
-- **Payment**: Razorpay (Mock)
+- **Payment**: CashFree (Mock)
 
 ---
 
@@ -79,7 +79,6 @@ gold/
 │   │   ├── app.ts        # Express app setup
 │   │   └── server.ts     # Server entry point
 │   ├── API_DOCUMENTATION.md
-│   ├── DATABASE_SCHEMA.md
 │   └── package.json
 │
 └── README.md
@@ -157,10 +156,6 @@ gold/
 
 ---
 
-## 📖 API Documentation
-
-See [server/API_DOCUMENTATION.md](./server/API_DOCUMENTATION.md) for complete API reference.
-
 ### Quick API Overview
 
 | Endpoint | Method | Auth | Description |
@@ -177,9 +172,6 @@ See [server/API_DOCUMENTATION.md](./server/API_DOCUMENTATION.md) for complete AP
 
 ---
 
-## 🗄️ Database Schema
-
-See [server/DATABASE_SCHEMA.md](./server/DATABASE_SCHEMA.md) for detailed schema.
 
 ### Collections
 - **users** - User accounts
@@ -219,7 +211,7 @@ See [server/DATABASE_SCHEMA.md](./server/DATABASE_SCHEMA.md) for detailed schema
 1. User enters amount in ₹
 2. System calculates grams based on live price
 3. Price is locked
-4. Razorpay order is created (mock)
+4. CashFree order is created (mock)
 5. User completes payment
 6. Payment is verified
 7. Gold is added to wallet
@@ -253,7 +245,7 @@ After starting the server, you can register a test user or use:
 ```
 
 ### Mock Features
-- **Razorpay**: All payment flows are mocked
+- **CashFree**: All payment flows are mocked
 - **KYC**: Auto-verified after 5 seconds
 - **Gold Provider**: Mock SafeGold/Augmont order IDs
 
@@ -274,7 +266,6 @@ CORS_ORIGIN=http://localhost:19000
 ### Frontend (constants/index.ts)
 ```typescript
 API_BASE_URL=http://192.168.1.100:5000/api
-RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxx
 ```
 
 ---
@@ -288,7 +279,7 @@ RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxx
 - [ ] Physical gold redemption
 - [ ] Referral system
 - [ ] SIP (Systematic Investment Plan)
-- [ ] Real Razorpay integration
+- [ ] Real CashFree integration
 - [ ] Real SafeGold/Augmont integration
 
 ---
