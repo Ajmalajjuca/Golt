@@ -122,7 +122,7 @@ export class NotificationService {
   /**
    * Add notification received listener
    */
-  static addNotificationReceivedListener(
+  static (
     listener: (notification: Notifications.Notification) => void
   ): Notifications.Subscription {
     return Notifications.addNotificationReceivedListener(listener);

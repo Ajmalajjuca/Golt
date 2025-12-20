@@ -177,7 +177,6 @@ export const OverlayActionMenu: React.FC<OverlayActionMenuProps> = ({
     inputRange: [0, 1],
     outputRange: ['0deg', '135deg'],
   });
-  console.log('metalType', metalType);
   const actions: ActionItem[] = [
     {
       icon: 'arrow-up',

@@ -173,10 +173,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             
             {/* Notification Icon */}
             <TouchableOpacity
-              onPress={() => {
-                // TODO: Navigate to notifications
-                console.log('Notifications pressed');
-              }}
+              onPress={() => navigation.navigate('PriceAlert')}
               style={{
                 width: 44,
                 height: 44,

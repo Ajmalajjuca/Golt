@@ -16,6 +16,7 @@ import { WalletScreen } from '../screens/WalletScreen';
 import { KYCScreen } from '../screens/KYCScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { TransactionsScreen } from '../screens/TransactionsScreen';
+import { PriceAlertScreen } from '../screens/PriceAlertScreen';
 import { OverlayActionMenu } from '../components/OverlayActionMenu';
 import { CustomTabBar } from '../components/CustomTabBar';
 import { theme } from '../theme';
@@ -116,6 +117,7 @@ export const AppNavigator = () => {
             <Stack.Screen name="SellGold" component={SellGoldScreen} />
             <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen name="KYC" component={KYCScreen} />
+            <Stack.Screen name="PriceAlert" component={PriceAlertScreen} />
           </Stack.Navigator>
         )}
       </SafeAreaView>

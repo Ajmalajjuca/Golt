@@ -32,7 +32,6 @@ export const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigati
     }
   };
 
-  console.log('transaction:',transactions);
   
 
   const onRefresh = async () => {

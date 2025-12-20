@@ -26,8 +26,19 @@ const userSchema = new Schema<IUserDocument>(
       match: [/^\d{10}$/, 'Phone number must be exactly 10 digits']
     },
     password: { type: String, required: false, minlength: 6, select: false }, // Changed to false
-    role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    avatar: { type: String, default: '' },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    pushTokens: [{
+      type: String,
+      trim: true
+    }],
+    avatar: {
+      type: String,
+      default: '',
+    },
     isBlocked: { type: Boolean, default: false },
     walletBalance: { type: Number, default: 0 },
     goldBalance: { type: Number, default: 0 },

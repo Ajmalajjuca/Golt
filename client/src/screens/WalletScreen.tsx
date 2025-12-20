@@ -41,7 +41,6 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ navigation }) => {
     }
   };
 
-  console.log('walletdata:',walletData);
   
 
   const onRefresh = async () => {

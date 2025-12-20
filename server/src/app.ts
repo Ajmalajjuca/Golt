@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import routes from './routes/index.js';
+import alertRoutes from './routes/alertRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { connectDB } from './config/database.js';
@@ -30,13 +31,14 @@ app.use(
   })
 );
 setTimeout(() => {
-    runImmediateHealthCheck();
-  }, 5000); // Wait 5 seconds for server to be fully ready
-  
-  // Start schedulers
-  startHealthCheckScheduler();
+  runImmediateHealthCheck();
+}, 5000); // Wait 5 seconds for server to be fully ready
+
+// Start schedulers
+startHealthCheckScheduler();
 startPriceScheduler();
 app.use('/api', routes);
+app.use('/api/alerts', alertRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });

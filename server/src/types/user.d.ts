@@ -11,6 +11,7 @@ export interface IUser {
   phone?: string;
   password?: string;
   role: UserRole;
+  pushTokens?: string[];
   avatar?: string;
   isBlocked?: boolean;
   walletBalance: number;

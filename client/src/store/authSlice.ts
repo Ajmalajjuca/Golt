@@ -65,7 +65,7 @@ export const loadUser = createAsyncThunk(
     try {
       const token = await AsyncStorage.getItem('token');
       const userStr = await AsyncStorage.getItem('user');
-      
+
       if (!token || !userStr) {
         throw new Error('No user found');
       }
@@ -166,6 +166,11 @@ const authSlice = createSlice({
     });
   },
 });
+
+// Selectors
+export const selectUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectToken = (state: { auth: AuthState }) => state.auth.token;
+export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 
 export const { clearError, updateUser } = authSlice.actions;
 export default authSlice.reducer;
